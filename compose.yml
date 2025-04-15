@@ -10,22 +10,21 @@ services:
     ports:
       - "8007:8000"
     volumes:
-      - ./app:/code/app  # Mount your local project directory to /app inside the container
+      - ./backend:/code/app  # Mount your local project directory to /app inside the container
     env_file:
       - .env
-    # depends_on:
-    #   - db
+    depends_on:
+      - db
 
-#   db:
-#     image: postgres:15  # Or any specific PostgreSQL version you prefer
-#     container_name: postgres-db-dev
-#     ports:
-#       - "5432:5432"
-#     env_file:
-#       - .example.env
-#       - .env
-#     volumes:
-#       - postgres_data:/var/lib/postgresql/data
+  db:
+    image: postgres:15  # Or any specific PostgreSQL version you prefer
+    container_name: postgres-db-dev
+    ports:
+      - "5432:5432"
+    env_file:
+      - .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
 
-# volumes:
-#   postgres_data: # Named volume to persist PostgreSQL data
+volumes:
+  postgres_data: # Named volume to persist PostgreSQL data
