@@ -7,8 +7,20 @@ from db_client import DBClient
 from contextlib import asynccontextmanager
 from typing import Annotated
 from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
 
+# Create the FastAPI app
 app = FastAPI()
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Temporarily allow all origins for development
+    allow_credentials=True,  # Allow cookies/credentials if needed
+    allow_methods=["*"],  # Allow all HTTP methods (GET, POST, etc.)
+    allow_headers=["*"],  # Allow all headers
+)
+
 
 
 class Product(BaseModel):

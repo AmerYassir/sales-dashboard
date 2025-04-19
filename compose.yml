@@ -1,8 +1,20 @@
 version: '3.8'
 
 services:
+  frontend:
+    image: frontend.dev # Use the image you built with Dockerfile.dev
+    container_name: sales-dashboard-frontend-dev
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
   web:
-    image: fastapi.dev  # Use the image you built with Dockerfile.dev
+    image: fastapi.dev # Use the image you built with Dockerfile.dev
     build:
       dockerfile: Dockerfile.dev
       context: .
