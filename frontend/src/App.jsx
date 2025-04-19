@@ -12,7 +12,7 @@ function App() {
     setError(null);
 
     try {
-      const response = await fetch(`http://0.0.0.0:8000`);
+      const response = await fetch(`http://127.0.0.1:8007/products/`);
       if (!response.ok) {
         throw new Error("Failed to fetch data");
       }

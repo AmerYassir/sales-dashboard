@@ -16,11 +16,11 @@ services:
   web:
     image: fastapi.dev # Use the image you built with Dockerfile.dev
     build:
-      dockerfile: Dockerfile.dev
       context: .
+      dockerfile: backend/Dockerfile.dev
     container_name: sales-dashboard-dev
     ports:
-      - "8007:8000"
+      - "8007:8007"
     volumes:
       - ./backend:/code/app  # Mount your local project directory to /app inside the container
     env_file:

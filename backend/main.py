@@ -11,11 +11,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # Create the FastAPI app
 app = FastAPI()
-
+origins = [
+    "http://localhost:5173",
+]
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Temporarily allow all origins for development
+    allow_origins=origins,  # Temporarily allow all origins for development
     allow_credentials=True,  # Allow cookies/credentials if needed
     allow_methods=["*"],  # Allow all HTTP methods (GET, POST, etc.)
     allow_headers=["*"],  # Allow all headers
