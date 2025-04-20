@@ -1,8 +1,20 @@
 version: '3.8'
 
 services:
+  frontend:
+    image: frontend.dev # Use the image you built with Dockerfile.dev
+    container_name: sales-dashboard-frontend-dev
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
   web:
-    image: fastapi.dev  # Use the image you built with Dockerfile.dev
+    image: fastapi.dev # Use the image you built with Dockerfile.dev
     build:
       dockerfile: Dockerfile.dev
       context: .
@@ -10,22 +22,22 @@ services:
     ports:
       - "8007:8000"
     volumes:
-      - ./app:/code/app  # Mount your local project directory to /app inside the container
+      - ./app:/code/app # Mount your local project directory to /app inside the container
     env_file:
       - .env
     # depends_on:
     #   - db
 
-#   db:
-#     image: postgres:15  # Or any specific PostgreSQL version you prefer
-#     container_name: postgres-db-dev
-#     ports:
-#       - "5432:5432"
-#     env_file:
-#       - .example.env
-#       - .env
-#     volumes:
-#       - postgres_data:/var/lib/postgresql/data
+#     db:
+#       image: postgres:15 # Or any specific PostgreSQL version you prefer
+#       container_name: postgres-db-dev
+#       ports:
+#         - "5432:5432"
+#       env_file:
+#         - .example.env
+#         - .env
+#       volumes:
+#         - postgres_data:/var/lib/postgresql/data
 
 # volumes:
 #   postgres_data: # Named volume to persist PostgreSQL data
