@@ -10,36 +10,6 @@ from pydantic import BaseModel
 from utils import get_password_hash, verify_password, create_access_token,token_required
 from datetime import timedelta
 from constants import ACCESS_TOKEN_EXPIRE_SECONDS
-# Database client
-db_client = DBClient()
-
-
-# Define lifespan for startup and shutdown
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup logic
-    db_client.create_products_table()
-    db_client.create_users_table()
-    db_client.create_sales_orders_table()
-    print("Starting up the application...")
-    yield
-    # Shutdown logic
-    print("Shutting down the application...")
-
-
-# Create the FastAPI app with lifespan
-app = FastAPI(lifespan=lifespan)
-
-# Configure CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173"
-    ],  # Allow specific origin and fallback to all
-    allow_credentials=True,  # Allow cookies/credentials if needed
-    allow_methods=["*"],  # Allow all HTTP methods (GET, POST, etc.)
-    allow_headers=["*"],  # Allow all headers
-)
 
 
 class User(BaseModel):
@@ -91,6 +61,17 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "*"
+    ],  # Allow specific origin and fallback to all
+    allow_credentials=True,  # Allow cookies/credentials if needed
+    allow_methods=["*"],  # Allow all HTTP methods (GET, POST, etc.)
+    allow_headers=["*"],  # Allow all headers
+)
+
 @app.post("/products/")
 @token_required
 async def create_product(request:Request,product: Product):
@@ -134,7 +115,6 @@ async def update_product(
 
 
 @app.post("/users/")
-@token_required
 async def create_user(request:Request,user: User):
     """
     Endpoint to create a new user.
