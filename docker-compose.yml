@@ -10,32 +10,37 @@ services:
     ports:
       - "5173:5173"
     volumes:
+      # Mount your local project directory to /app inside the container
       - ./frontend:/app
       - /app/node_modules
+    environment:
+      - NODE_ENV=development
 
-  web:
+  backend:
     image: fastapi.dev # Use the image you built with Dockerfile.dev
     build:
-      context: .
-      dockerfile: backend/Dockerfile.dev
+      context: ./backend
+      dockerfile: Dockerfile.dev
     container_name: sales-dashboard-dev
     ports:
-      - "8007:8007"
+      - "8000:8000"
     volumes:
-      - ./backend:/code/app  # Mount your local project directory to /app inside the container
+      - ./backend:/code/app # Mount your local project directory to /app inside the container
     env_file:
       - .env
     depends_on:
       - db
 
   db:
-    image: postgres:15  # Or any specific PostgreSQL version you prefer
-    container_name: postgres-db-dev
+    image: postgres:15 # Or any specific PostgreSQL version you prefer
+    container_name: sales-dashboard-db-dev
     ports:
       - "5432:5432"
     env_file:
       - .env
     volumes:
+      # Use a named volume to persist PostgreSQL data
+      # This will create a volume named postgres_data, and mount it to /var/lib/postgresql/data inside the container
       - postgres_data:/var/lib/postgresql/data
 
 volumes:
