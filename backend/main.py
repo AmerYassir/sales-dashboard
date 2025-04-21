@@ -1,46 +1,35 @@
-from fastapi import FastAPI, UploadFile, HTTPException, Request, Path
-import psycopg2
+from fastapi import FastAPI, UploadFile, HTTPException,Request,Path,Depends
 from psycopg2.extras import RealDictCursor
-import uuid
-import os
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.responses import JSONResponse
 from db_client import DBClient
 from contextlib import asynccontextmanager
 from typing import Annotated
 from pydantic import BaseModel
-from fastapi.middleware.cors import CORSMiddleware
-
-# Database client
-db_client = DBClient()
-
-
-# Define lifespan for startup and shutdown
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup logic
-    db_client.create_products_table()
-    db_client.create_users_table()
-    db_client.create_sales_orders_table()
-    print("Starting up the application...")
-    yield
-    # Shutdown logic
-    print("Shutting down the application...")
+from utils import get_password_hash, verify_password, create_access_token,token_required
+from datetime import timedelta
+from constants import ACCESS_TOKEN_EXPIRE_SECONDS
 
 
-# Create the FastAPI app with lifespan
-app = FastAPI(lifespan=lifespan)
+class User(BaseModel):
+    username: str
+    email: str
+    password: str
 
-# Configure CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173"
-    ],  # Allow specific origin and fallback to all
-    allow_credentials=True,  # Allow cookies/credentials if needed
-    allow_methods=["*"],  # Allow all HTTP methods (GET, POST, etc.)
-    allow_headers=["*"],  # Allow all headers
-)
+    def as_dict(self):
+        return {
+            name: val for name, val in self.__dict__.items() if val is not None
+        }
 
+class UpdateUser(BaseModel):
+    username: str | None = None
+    password: str | None = None
 
+    def as_dict(self):
+        return {
+            name: val for name, val in self.__dict__.items() if val is not None
+        }
 class Product(BaseModel):
     name: str
     description: str | None = None
@@ -57,9 +46,35 @@ class UpdateProduct(Product):
     price: float | None = None
     stock: int | None = None
 
+db_client= DBClient()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup logic
+
+    db_client.create_products_table()
+    db_client.create_users_table()
+    db_client.create_sales_orders_table()
+    print("Starting up the application...")
+    yield
+    # Shutdown logic
+    print("Shutting down the application...")
+
+app = FastAPI(lifespan=lifespan)
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "*"
+    ],  # Allow specific origin and fallback to all
+    allow_credentials=True,  # Allow cookies/credentials if needed
+    allow_methods=["*"],  # Allow all HTTP methods (GET, POST, etc.)
+    allow_headers=["*"],  # Allow all headers
+)
 
 @app.post("/products/")
-async def create_product(product: Product):
+@token_required
+async def create_product(request:Request,product: Product):
     """
     Endpoint to create a new product.
     """
@@ -76,7 +91,9 @@ async def create_product(product: Product):
 
 
 @app.put("/products/{product_id}")
+@token_required
 async def update_product(
+    request:Request,
     product_id: Annotated[int, Path(title="The ID of the Product to get", ge=0)],
     q: str | None = None,
     product: UpdateProduct | None = None,
@@ -96,24 +113,23 @@ async def update_product(
     }
 
 
+
 @app.post("/users/")
-async def create_user(request: Request):
+async def create_user(request:Request,user: User):
     """
     Endpoint to create a new user.
     """
-    try:
-        request_body = await request.json()
-        username = request_body["username"]
-        email = request_body["email"]
-        password = request_body["password"]
-    except KeyError as e:
-        raise HTTPException(status_code=400, detail=f"Missing required field: {str(e)}")
-    user_id = db_client.add_user(username, email, password)
-    return {"user_id": user_id, "username": username, "email": email}
+    hashed_password = get_password_hash(user.password)
+    user_data = user.as_dict()
+    user_data["password"] = hashed_password
+    user_id = db_client.add_user(user_data)
+
+    return {"user_id": user_id, "username": user_data["username"], "email": user_data["email"]}
 
 
 @app.get("/products/{product_id}")
-async def get_product(product_id: str):
+@token_required
+async def get_product(request:Request, product_id: str):
     """
     Endpoint to retrieve a product by its ID.
     """
@@ -125,7 +141,8 @@ async def get_product(product_id: str):
 
 
 @app.get("/users/{user_id}")
-async def get_user(user_id: str):
+@token_required
+async def get_user(request:Request, user_id: str):
     """
     Endpoint to retrieve a user by their ID.
     """
@@ -136,7 +153,8 @@ async def get_user(user_id: str):
 
 
 @app.get("/products/")
-async def get_products(page: int = 1, page_size: int = 10):
+@token_required
+async def get_products(request:Request, page: int = 1, page_size: int = 10):
     """
     Endpoint to retrieve products with pagination.
     """
@@ -158,9 +176,9 @@ async def get_products(page: int = 1, page_size: int = 10):
         "total_pages": (total_count + page_size - 1) // page_size,
     }
 
-
 @app.get("/users/")
-async def get_users(page: int = 1, page_size: int = 10):
+@token_required
+async def get_users(request: Request,page: int = 1, page_size: int = 10):
     """
     Endpoint to retrieve users with pagination.
     """
@@ -179,3 +197,21 @@ async def get_users(page: int = 1, page_size: int = 10):
         "total_count": total_count,
         "total_pages": (total_count + page_size - 1) // page_size,
     }
+
+
+@app.post("/login/")
+async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    """
+    Endpoint to log in a user and return an access token.
+    """
+    user = db_client.get_user_by_email(form_data.username)
+    print(f"Logging in user: {form_data.username}, password: {form_data.password}")
+    print(user)
+    if not user or not verify_password(form_data.password, user["password"]):
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+    
+    access_token_expires = timedelta(seconds=ACCESS_TOKEN_EXPIRE_SECONDS)
+    access_token = create_access_token(
+        data={"sub": user["email"]}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer","expire": access_token_expires}
