@@ -31,7 +31,7 @@ class DBClient:
         query = """
         CREATE TABLE IF NOT EXISTS users (
             id SERIAL PRIMARY KEY,
-            name VARCHAR(100) NOT NULL,
+            username VARCHAR(100) NOT NULL,
             email VARCHAR(100) UNIQUE NOT NULL,
             password VARCHAR(255) NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -158,9 +158,9 @@ class DBClient:
         print(f"Filters: {filters}")
         return self.update_value("products", data, filters)
     
-    def update_user(self, user_id, name, email, password):
+    def update_user(self, user_id, username, email, password):
         data = {
-            "name": name,
+            "username": username,
             "email": email,
             "password": password
         }
@@ -265,7 +265,11 @@ class DBClient:
         except Exception as e:
             print(f"Error executing query: {e}")
             return None
-
+        
+    def get_user_by_email(self, email, fields=['password']+DEFAULT_USER_GET_FIELD_KEYS):
+        result = self.get_value_with_columns("users", fields, {"email": ["=", email]})
+        return result[0] if result else None
+    
     def get_user_by_id(self, user_id, fields=DEFAULT_USER_GET_FIELD_KEYS):
         result=self.get_value_with_columns("users", fields, {"id": ["=",user_id]})
         return result[0] if result else None

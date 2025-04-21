@@ -1,6 +1,10 @@
 # Use the official Python 3.8 image as the base image
 FROM python:3.13
 
+# Install nano
+RUN apt-get update && \
+    apt-get install -y nano --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
 # Set the working directory in the container
 WORKDIR /code/app
 
