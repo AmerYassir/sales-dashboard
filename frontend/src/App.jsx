@@ -1,52 +1,48 @@
-import { useState } from "react";
-import "./App.css";
+import { useState, useEffect } from "react";
+import api from "./api/axios";
 
 function App() {
-  const [data, setData] = useState(null);
+  const [products, setProducts] = useState([]);
   const [error, setError] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
 
-  // Function to fetch data from the API
-  const fetchData = async () => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch(`http://127.0.0.1:8007/products/`);
-      if (!response.ok) {
-        throw new Error("Failed to fetch data");
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const response = await api.get("/products/");
+        setProducts(response.data.products);
+      } catch (err) {
+        if (err.response) {
+          setError(`Server error: ${err.response.status} ${err.response.data.detail}`);
+        } else if (err.request) {
+          setError("CORS or network error: Unable to reach the server");
+        } else {
+          setError(`Error: ${err.message}`);
+        }
+        console.error(err);
       }
-      const jsonData = await response.json();
-      setData(jsonData);
-    } catch (error) {
-      setError(error.message);
-      setData(null);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
+
+    fetchProducts();
+  }, []);
+
+  if (error) {
+    return <div className="text-red-500">{error}</div>;
+  }
 
   return (
-    <div>
-      <h1>Sales Dashboard</h1>
-
-      {/* Fetch button */}
-      <button onClick={fetchData} disabled={isLoading}>
-        {isLoading ? "Loading..." : "Fetch Data"}
-      </button>
-
-      {/* Display fetched data */}
-      {data && (
-        <div>
-          <h2>Data:</h2>
-          <p>
-            <strong>Message:</strong> {data.message}
-          </p>
-        </div>
+    <div className="p-4">
+      <h1 className="text-2xl font-bold mb-4">Products</h1>
+      {products.length === 0 ? (
+        <p>No products available</p>
+      ) : (
+        <ul className="list-disc pl-5">
+          {products.map((product) => (
+            <li key={product.id} className="mb-2">
+              {product.name} - ${product.price}
+            </li>
+          ))}
+        </ul>
       )}
-
-      {/* Display error message */}
-      {error && <p style={{ color: "red" }}>Error: {error}</p>}
     </div>
   );
 }
