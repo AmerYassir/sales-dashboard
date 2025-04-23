@@ -43,11 +43,13 @@ class DBClient:
         query = """
         CREATE TABLE IF NOT EXISTS products (
             id SERIAL PRIMARY KEY,
+            tenant_id INT NOT NULL,
             name VARCHAR(100) NOT NULL,
             description TEXT,
             price NUMERIC(10, 2) NOT NULL,
             stock INT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (tenant_id) REFERENCES users(id)
         );
         """
         self.execute_query(query)
@@ -56,14 +58,17 @@ class DBClient:
         query = """
         CREATE TABLE IF NOT EXISTS sales_orders (
             id SERIAL PRIMARY KEY,
+            tenant_id INT NOT NULL,
             user_id INT REFERENCES users(id),
             product_id INT REFERENCES products(id),
             quantity INT NOT NULL,
             total_price NUMERIC(10, 2) NOT NULL,
-            order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (tenant_id) REFERENCES users(id)
         );
         """
         self.execute_query(query)
+
     def insert_value(self, table_name, data):
         # Ensure data is provided as a dictionary
         if not isinstance(data, dict) or not data:
@@ -72,7 +77,8 @@ class DBClient:
         # Construct the INSERT part of the query
         columns = sql.SQL(', ').join(sql.Identifier(key) for key in data.keys())
         values = sql.SQL(', ').join(sql.Placeholder() for _ in data.values())
-
+        print(f"Columns: {columns}")
+        print(f"Values: {values}")
         query = sql.SQL("INSERT INTO {} ({}) VALUES ({}) RETURNING id;").format(
         sql.Identifier(table_name),
         columns,
@@ -96,13 +102,15 @@ class DBClient:
     def add_product(self, data):
         return self.insert_value("products", data)
     
-    def update_value(self, table_name, data, filters):
+    def update_value(self, table_name, data, filters,tenant_based=True):
         # Ensure data is provided as a dictionary
         if not isinstance(data, dict) or not data:
             raise HTTPException(status_code=400, detail="Data must be a non-empty dictionary")
         # Ensure filters are provided as a dictionary
         if not isinstance(filters, dict) or not filters:
             raise HTTPException(status_code=400, detail="Filters must be a non-empty dictionary")
+        if "tenant_id" not in data:
+            raise HTTPException(status_code=400, detail="tenant_id is required in data")
 
         # Construct the SET part of the query
         set_clause = sql.SQL(', ').join(
@@ -113,6 +121,8 @@ class DBClient:
         # Construct the WHERE part of the query
         filter_conditions = []
         filter_values = []
+        if tenant_based:
+            filters.update({"tenant_id": ["=", data["tenant_id"]]})
 
         for column, (operator, value) in filters.items():
             if operator not in FILTER_OPERATORS:
@@ -165,7 +175,7 @@ class DBClient:
             "password": password
         }
         filters = {"id": ["=", user_id]}
-        return self.update_value("users", data, filters)
+        return self.update_value("users", data, filters,tenant_based=False)
     
 
     def add_sales_order(self, user_id, product_id, quantity, total_price):
@@ -184,7 +194,7 @@ class DBClient:
             print(f"Error adding sales order: {e}")
             return None
         
-    def _construct_query(self, table_name, fields, filters, limit=None, offset=None):
+    def _construct_query(self, tenant_id, table_name, fields, filters, limit=None, offset=None,tenant_based=True):
         # Ensure fields are provided as a list
         if not isinstance(fields, list) or not fields:
             raise HTTPException(status_code=400, detail="Fields must be a non-empty list")
@@ -198,7 +208,8 @@ class DBClient:
         # Construct the WHERE part of the query
         filter_conditions = []
         filter_values = []
-
+        if tenant_based:
+            filters.update({"tenant_id": ["=", tenant_id]})
         for column, (operator, value) in filters.items():
             if operator not in FILTER_OPERATORS:
                 raise HTTPException(status_code=400, detail=f"Invalid operator: {operator}")
@@ -229,8 +240,8 @@ class DBClient:
 
         return query, filter_values
 
-    def get_value_with_columns(self, table_name, fields, filters, limit=None, offset=None):
-        query, filter_values = self._construct_query(table_name, fields, filters, limit, offset)
+    def get_value_with_columns(self, tenant_id, table_name, fields, filters, limit=None, offset=None,tenant_based=True):
+        query, filter_values = self._construct_query(tenant_id,table_name, fields, filters, limit, offset,tenant_based=tenant_based)
 
         # Execute the query
         try:
@@ -249,8 +260,8 @@ class DBClient:
             print(f"Error executing query: {e}")
             return None
 
-    def get_value(self, table_name, fields, filters, limit=None, offset=None):
-        query, filter_values = self._construct_query(table_name, fields, filters, limit, offset)
+    def get_value(self, tenant_id, table_name, fields, filters, limit=None, offset=None,tenant_based=True):
+        query, filter_values = self._construct_query(tenant_id,table_name, fields, filters, limit, offset,tenant_based=tenant_based)
 
         # Execute the query
         try:
@@ -267,26 +278,26 @@ class DBClient:
             return None
         
     def get_user_by_email(self, email, fields=['password']+DEFAULT_USER_GET_FIELD_KEYS):
-        result = self.get_value_with_columns("users", fields, {"email": ["=", email]})
+        result = self.get_value_with_columns('1',"users", fields, {"email": ["=", email]},tenant_based=False)
         return result[0] if result else None
     
     def get_user_by_id(self, user_id, fields=DEFAULT_USER_GET_FIELD_KEYS):
-        result=self.get_value_with_columns("users", fields, {"id": ["=",user_id]})
+        result=self.get_value_with_columns('1',"users", fields, {"id": ["=",user_id]},tenant_based=False)
         return result[0] if result else None
 
-    def get_product_by_id(self, product_id, fields=DEFAULT_PRODUCT_GET_FIELD_KEYS):
-        result=self.get_value_with_columns("products", fields, {"id": ["=",product_id]})
+    def get_product_by_id(self, tenant_id, product_id, fields=DEFAULT_PRODUCT_GET_FIELD_KEYS):
+        result=self.get_value_with_columns(tenant_id, "products", fields, {"id": ["=",product_id]})
         return result[0] if result else None
 
     def get_users_with_paging(self, limit, offset):
-        result =self.get_value_with_columns("users", DEFAULT_USER_GET_FIELD_KEYS, {}, limit, offset)
+        result =self.get_value_with_columns('1',"users", DEFAULT_USER_GET_FIELD_KEYS, {}, limit, offset,tenant_based=False)
         return result
 
-    def get_products_with_paging(self, limit, offset):
-        return self.get_value_with_columns("products", DEFAULT_PRODUCT_GET_FIELD_KEYS, {}, limit, offset)
+    def get_products_with_paging(self, tenant_id, limit, offset):
+        return self.get_value_with_columns(tenant_id, "products", DEFAULT_PRODUCT_GET_FIELD_KEYS, {}, limit, offset)
 
-    def get_table_count(self, table_name):
-        query = sql.SQL("SELECT COUNT(*) FROM {};").format(sql.Identifier(table_name))
+    def get_table_count(self,tenant_id, table_name):
+        query = sql.SQL("SELECT COUNT(*) FROM {} WHERE tenant_id={};").format(sql.Identifier(table_name),sql.Literal(tenant_id))
         try:
             with self.connection.cursor() as cursor:
                 cursor.execute(query)
