@@ -31,6 +31,7 @@ class UpdateUser(BaseModel):
             name: val for name, val in self.__dict__.items() if val is not None
         }
 class Product(BaseModel):
+    tenant_id: int
     name: str
     description: str | None = None
     price: float
@@ -41,6 +42,7 @@ class Product(BaseModel):
 
 
 class UpdateProduct(Product):
+    tenant_id: int
     name: str | None = None
     description: str | None = None
     price: float | None = None
@@ -58,6 +60,7 @@ async def lifespan(app: FastAPI):
     yield
     # Shutdown logic
     print("Shutting down the application...")
+    db_client.close_connection()
 
 app = FastAPI(lifespan=lifespan)
 
@@ -86,7 +89,7 @@ async def create_product(request:Request,product: Product):
     return {
         "product_id": product_id,
         "status": "created",
-        "product": db_client.get_product_by_id(product_id),
+        "product": db_client.get_product_by_id(product.tenant_id,product_id),
     }
 
 
@@ -109,7 +112,7 @@ async def update_product(
     return {
         "product_id": product_id,
         "status": "updated",
-        "product": db_client.get_product_by_id(product_id),
+        "product": db_client.get_product_by_id(product.tenant_id,product_id),
     }
 
 
@@ -127,14 +130,14 @@ async def create_user(request:Request,user: User):
     return {"user_id": user_id, "username": user_data["username"], "email": user_data["email"]}
 
 
-@app.get("/products/{product_id}")
+@app.get("/products/{tenant_id}/{product_id}")
 @token_required
-async def get_product(request:Request, product_id: str):
+async def get_product(request:Request,tenant_id: str, product_id: str):
     """
     Endpoint to retrieve a product by its ID.
     """
     print(f"Retrieving product with ID: {product_id}")
-    product = db_client.get_product_by_id(product_id)
+    product = db_client.get_product_by_id(tenant_id,product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     return product
@@ -152,9 +155,9 @@ async def get_user(request:Request, user_id: str):
     return user
 
 
-@app.get("/products/")
+@app.get("/products/{tenant_id}/")
 @token_required
-async def get_products(request:Request, page: int = 1, page_size: int = 10):
+async def get_products(request:Request,tenant_id: str, page: int = 1, page_size: int = 10):
     """
     Endpoint to retrieve products with pagination.
     """
@@ -162,11 +165,11 @@ async def get_products(request:Request, page: int = 1, page_size: int = 10):
         raise HTTPException(
             status_code=400, detail="Page and page_size must be greater than 0"
         )
-
+    print(tenant_id)
     offset = (page - 1) * page_size
-    products = db_client.get_products_with_paging(page_size, offset)
+    products = db_client.get_products_with_paging(tenant_id,page_size, offset)
     print(f"Products retrieved: {products}")
-    total_count = db_client.get_table_count("products")
+    total_count = db_client.get_table_count(tenant_id,"products")
     print(f"Total products count: {total_count}")
     return {
         "products": products,
@@ -178,7 +181,7 @@ async def get_products(request:Request, page: int = 1, page_size: int = 10):
 
 @app.get("/users/")
 @token_required
-async def get_users(request: Request,page: int = 1, page_size: int = 10):
+async def get_users(request: Request, page: int = 1, page_size: int = 10):
     """
     Endpoint to retrieve users with pagination.
     """
@@ -189,13 +192,13 @@ async def get_users(request: Request,page: int = 1, page_size: int = 10):
 
     offset = (page - 1) * page_size
     users = db_client.get_users_with_paging(page_size, offset)
-    total_count = db_client.get_table_count("users")
+    # total_count = db_client.get_table_count("users")
     return {
         "users": users,
         "page": page,
         "page_size": page_size,
-        "total_count": total_count,
-        "total_pages": (total_count + page_size - 1) // page_size,
+        # "total_count": total_count,
+        # "total_pages": (total_count + page_size - 1) // page_size,
     }
 
 
