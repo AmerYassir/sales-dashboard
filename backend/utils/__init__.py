@@ -38,9 +38,12 @@ def token_required(func):
     async def wrapper(*args,**kwargs):
         request= kwargs.get('request')
         oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")  # Create instance here
+        tenant_id = None
         try:
             token_string = await oauth2_scheme(request=request) 
             payload = jwt.decode(token_string, SECRET_KEY, algorithms=[ALGORITHM])
+            tenant_id = payload.get("tenant_id")
+
         except ExpiredSignatureError:
             raise HTTPException(
                 status_code=HTTP_401_UNAUTHORIZED,
@@ -53,5 +56,12 @@ def token_required(func):
                 detail="Invalid token",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+        except KeyError as e:
+            raise HTTPException(
+                status_code=HTTP_401_UNAUTHORIZED,
+                detail=f"Missing token_id in header: {str(e)}",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        kwargs['tenant_id'] = tenant_id
         return await func(*args, **kwargs)
     return wrapper
