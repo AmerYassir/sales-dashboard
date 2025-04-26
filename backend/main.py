@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, HTTPException,Request,Path,Depends
+from fastapi import FastAPI, UploadFile, HTTPException,Request,Path,Depends,Form
 from psycopg2.extras import RealDictCursor
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from utils import get_password_hash, verify_password, create_access_token,token_required
 from datetime import timedelta
 from constants import ACCESS_TOKEN_EXPIRE_SECONDS
+from pydantic import EmailStr
 
 
 class User(BaseModel):
@@ -31,7 +32,6 @@ class UpdateUser(BaseModel):
             name: val for name, val in self.__dict__.items() if val is not None
         }
 class Product(BaseModel):
-    tenant_id: int
     name: str
     description: str | None = None
     price: float
@@ -42,7 +42,6 @@ class Product(BaseModel):
 
 
 class UpdateProduct(Product):
-    tenant_id: int
     name: str | None = None
     description: str | None = None
     price: float | None = None
@@ -77,19 +76,19 @@ app.add_middleware(
 
 @app.post("/products/")
 @token_required
-async def create_product(request:Request,product: Product):
+async def create_product(request:Request,product: Product,tenant_id:int=None):
     """
     Endpoint to create a new product.
     """
+    print(f"tenant_id: {tenant_id}")
     print("Creating product: {product}")
-
-    product_id = db_client.add_product(product.as_dict())
+    product_id = db_client.add_product(tenant_id,product.as_dict())
     if not product_id:
         raise HTTPException(status_code=500, detail="Failed to create product")
     return {
         "product_id": product_id,
         "status": "created",
-        "product": db_client.get_product_by_id(product.tenant_id,product_id),
+        "product": db_client.get_product_by_id(tenant_id,product_id),
     }
 
 
@@ -100,6 +99,7 @@ async def update_product(
     product_id: Annotated[int, Path(title="The ID of the Product to get", ge=0)],
     q: str | None = None,
     product: UpdateProduct | None = None,
+    tenant_id: int | None = None,
 ):
     """
     Endpoint to update a product by its ID.
@@ -108,31 +108,71 @@ async def update_product(
         raise HTTPException(status_code=400, detail="Product data is required")
 
     print(f"Updating product with ID: {product_id}")
-    db_client.update_product(product_id, product.as_dict())
+    res=db_client.update_product(tenant_id,product_id, product.as_dict())
+    if res == -1:
+        raise HTTPException(status_code=404, detail="Product not found")
     return {
         "product_id": product_id,
         "status": "updated",
-        "product": db_client.get_product_by_id(product.tenant_id,product_id),
+        "product": db_client.get_product_by_id(tenant_id,product_id),
     }
 
 
 
-@app.post("/users/")
-async def create_user(request:Request,user: User):
+@app.post("/signup/")
+async def create_user(
+    request: Request,
+    username: str = Form(...),
+    email: EmailStr = Form(...),
+    password: str = Form(...),
+):
     """
     Endpoint to create a new user.
     """
-    hashed_password = get_password_hash(user.password)
-    user_data = user.as_dict()
-    user_data["password"] = hashed_password
+
+    # Validate password strength
+    if len(password) < 8:
+        raise HTTPException(
+            status_code=400, detail="Password must be at least 8 characters long"
+        )
+    if not any(char.isdigit() for char in password):
+        raise HTTPException(
+            status_code=400, detail="Password must contain at least one digit"
+        )
+    if not any(char.isalpha() for char in password):
+        raise HTTPException(
+            status_code=400, detail="Password must contain at least one letter"
+        )
+    if not any(char in "!@#$%^&*()-_=+[]{}|;:'\",.<>?/`~" for char in password):
+        raise HTTPException(
+            status_code=400,
+            detail="Password must contain at least one special character",
+        )
+
+    hashed_password = get_password_hash(password)
+    user_data = {
+        "username": username,
+        "email": email,
+        "password": hashed_password,
+    }
     user_id = db_client.add_user(user_data)
+    access_token_expires = timedelta(seconds=ACCESS_TOKEN_EXPIRE_SECONDS)
+    access_token = create_access_token(
+        data={"sub": email, "tenant_id": user_id}, expires_delta=access_token_expires
+    )
+    return {
+        "expire": access_token_expires,
+        "username": username,
+        "email": email,
+        "token_type": "bearer",
+        "access_token": access_token,
+        "user_id": user_id,
+    }
 
-    return {"user_id": user_id, "username": user_data["username"], "email": user_data["email"]}
 
-
-@app.get("/products/{tenant_id}/{product_id}")
+@app.get("/products/{product_id}")
 @token_required
-async def get_product(request:Request,tenant_id: str, product_id: str):
+async def get_product(request:Request,product_id: str,tenant_id:int=None):
     """
     Endpoint to retrieve a product by its ID.
     """
@@ -141,23 +181,25 @@ async def get_product(request:Request,tenant_id: str, product_id: str):
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     return product
-
-
-@app.get("/users/{user_id}")
+@app.delete("/products/{product_id}")
 @token_required
-async def get_user(request:Request, user_id: str):
+async def delete_product(
+    request:Request,
+    product_id: Annotated[int, Path(title="The ID of the Product to get", ge=0)],
+    tenant_id:int=None
+):
     """
-    Endpoint to retrieve a user by their ID.
+    Endpoint to delete a product by its ID.
     """
-    user = db_client.get_user_by_id(user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    return user
+    print(f"Deleting product with ID: {product_id}")
+    res=db_client.delete_product(tenant_id,product_id)
+    if res == -1:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return {"status": "deleted", "product_id": product_id}
 
-
-@app.get("/products/{tenant_id}/")
+@app.get("/products/")
 @token_required
-async def get_products(request:Request,tenant_id: str, page: int = 1, page_size: int = 10):
+async def get_products(request:Request, page: int = 1, page_size: int = 10,tenant_id:int=None):
     """
     Endpoint to retrieve products with pagination.
     """
@@ -179,28 +221,6 @@ async def get_products(request:Request,tenant_id: str, page: int = 1, page_size:
         "total_pages": (total_count + page_size - 1) // page_size,
     }
 
-@app.get("/users/")
-@token_required
-async def get_users(request: Request, page: int = 1, page_size: int = 10):
-    """
-    Endpoint to retrieve users with pagination.
-    """
-    if page < 1 or page_size < 1:
-        raise HTTPException(
-            status_code=400, detail="Page and page_size must be greater than 0"
-        )
-
-    offset = (page - 1) * page_size
-    users = db_client.get_users_with_paging(page_size, offset)
-    # total_count = db_client.get_table_count("users")
-    return {
-        "users": users,
-        "page": page,
-        "page_size": page_size,
-        # "total_count": total_count,
-        # "total_pages": (total_count + page_size - 1) // page_size,
-    }
-
 
 @app.post("/login/")
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):
@@ -215,6 +235,6 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     
     access_token_expires = timedelta(seconds=ACCESS_TOKEN_EXPIRE_SECONDS)
     access_token = create_access_token(
-        data={"sub": user["email"]}, expires_delta=access_token_expires
+        data={"sub": user["email"],"tenant_id":user['id']}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer","expire": access_token_expires}

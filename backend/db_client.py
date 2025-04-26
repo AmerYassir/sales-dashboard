@@ -92,14 +92,36 @@ class DBClient:
                 inserted_id = cursor.fetchone()[0]
                 print(f"Record inserted into {table_name} with ID: {inserted_id}")
                 return inserted_id
+        except psycopg2.IntegrityError as e:
+            self.connection.rollback()
+            print(f"Integrity error inserting record into {table_name}: {e}")
+            raise HTTPException(status_code=409, detail=str(e))
+        except psycopg2.ProgrammingError as e:
+            self.connection.rollback()
+            print(f"Programming error inserting record into {table_name}: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+        except psycopg2.DataError as e:
+            self.connection.rollback()
+            print(f"Data error inserting record into {table_name}: {e}")
+            raise HTTPException(status_code=422, detail=str(e))
+        except psycopg2.errors.UniqueViolation as e:
+            self.connection.rollback()
+            print(f"Unique violation error inserting record into {table_name}: {e}")
+            raise HTTPException(status_code=400, detail=str(e))
+        except psycopg2.Error as e:
+            print(f"Database error inserting record into {table_name}: {e}")
+            print(type(e))
+            raise HTTPException(status_code=500, detail=str(e))
         except Exception as e:
-            print(f"Error inserting record into {table_name}: {e}")
+            print(f"Unexpected error inserting record into {table_name}: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
         return None
 
     def add_user(self, data):
         return self.insert_value("users", data)
 
-    def add_product(self, data):
+    def add_product(self, tenant_id, data):
+        data.update({"tenant_id": tenant_id})
         return self.insert_value("products", data)
     
     def update_value(self, table_name, data, filters,tenant_based=True):
@@ -109,7 +131,7 @@ class DBClient:
         # Ensure filters are provided as a dictionary
         if not isinstance(filters, dict) or not filters:
             raise HTTPException(status_code=400, detail="Filters must be a non-empty dictionary")
-        if "tenant_id" not in data:
+        if tenant_based and "tenant_id" not in data:
             raise HTTPException(status_code=400, detail="tenant_id is required in data")
 
         # Construct the SET part of the query
@@ -155,14 +177,64 @@ class DBClient:
                     return updated_id[0]
                 else:
                     print("No matching record found to update.")
-                    return None
+                    return -1
         except Exception as e:
             print(f"Error updating record in {table_name}: {e}")
-            return None
+            raise HTTPException(status_code=500, detail=str(e))
+        
+    def delete_value(self, table_name, filters, tenant_based=True):
+        # Ensure filters are provided as a dictionary
+        if not isinstance(filters, dict) or not filters:
+            raise HTTPException(status_code=400, detail="Filters must be a non-empty dictionary")
 
-    def update_product(self, product_id, data):
+        # Construct the WHERE part of the query
+        filter_conditions = []
+        filter_values = []
+        if tenant_based and "tenant_id" not in filters:
+            raise HTTPException(status_code=400, detail="tenant_id is required in filters for tenant-based deletion")
+
+        for column, (operator, value) in filters.items():
+            if operator not in FILTER_OPERATORS:
+                raise HTTPException(status_code=400, detail=f"Invalid operator: {operator}")
+            filter_conditions.append(
+                sql.SQL("{} {} %s").format(sql.Identifier(column), sql.SQL(operator))
+            )
+            filter_values.append(value)
+
+        where_clause = sql.SQL(" WHERE ") + sql.SQL(" AND ").join(filter_conditions)
+
+        # Combine the query
+        query = sql.SQL("DELETE FROM {}{} RETURNING id;").format(
+            sql.Identifier(table_name),
+            where_clause
+        )
+
+        # Execute the query
+        try:
+            with self.connection.cursor() as cursor:
+                print(f"Executing query: {query.as_string(self.connection)}")
+                print(f"Filter values: {filter_values}")
+                cursor.execute(query, filter_values)
+                deleted_id = cursor.fetchone()
+                if deleted_id:
+                    print(f"Record deleted from {table_name} with ID: {deleted_id[0]}")
+                    return deleted_id[0]
+                else:
+                    print("No matching record found to delete.")
+                    return -1
+        except Exception as e:
+            print(f"Error deleting record from {table_name}: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+        
+    def delete_product(self, tenant_id, product_id):
+        filters = {"id": ["=", product_id], "tenant_id": ["=", tenant_id]}
+        print(f"Deleting product with ID: {product_id} for tenant ID: {tenant_id}")
+        return self.delete_value("products", filters)
+    
+    def update_product(self, tenant_id, product_id, data):
 
         filters = {"id": ["=", product_id]}
+        data.update({"tenant_id": tenant_id})
         print(f"Updating product with ID: {product_id}")
         print(f"Data to update: {data}")
         print(f"Filters: {filters}")
