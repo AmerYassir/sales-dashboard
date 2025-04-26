@@ -15,6 +15,16 @@ services:
       - /app/node_modules
     environment:
       - NODE_ENV=development
+    develop:
+      watch:
+        - action: sync
+          path: ./frontend/src
+          target: /app/src
+          ignore:
+            - ./frontend/node_modules/
+        - action: rebuild
+          path: ./frontend/package.json
+          target: /app/package.json
 
   backend:
     image: fastapi.dev # Use the image you built with Dockerfile.dev
