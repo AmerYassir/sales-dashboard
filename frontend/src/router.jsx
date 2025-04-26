@@ -5,6 +5,7 @@ import BeatLoader from "./components/BeatLoader";
 import PublicLayout from "./PublicLayout";
 const Home = lazy(() => import("./screens/HomeScreen"));
 const Login = lazy(() => import("./screens/Login"));
+const Signup = lazy(() => import("./screens/Signup"));
 const ErrorElement = lazy(() => import("./screens/ErrorElement"));
 
 const Loading = () => (
@@ -14,7 +15,6 @@ const Loading = () => (
 );
 
 const Router = () => {
-  // Combine and conditionally include routes based on authentication status
   const router = createBrowserRouter([
     {
       path: "/landing",
@@ -25,6 +25,19 @@ const Router = () => {
       element: (
         <Suspense fallback={<Loading />}>
           <Login />
+        </Suspense>
+      ),
+      errorElement: (
+        <Suspense fallback={<Loading />}>
+          <ErrorElement />
+        </Suspense>
+      ),
+    },
+    {
+      path: "/signup",
+      element: (
+        <Suspense fallback={<Loading />}>
+          <Signup />
         </Suspense>
       ),
       errorElement: (

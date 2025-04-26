@@ -3,8 +3,8 @@ import { Navigate, Outlet } from "react-router";
 import { useAuth } from "./context/AuthProvider";
 
 const PublicLayout = () => {
-  const { token } = useAuth();
-  if (!token) return <Navigate to="/login" />;
+  const { auth } = useAuth();
+  if (!auth.token) return <Navigate to="/login" />;
 
   return (
     <>

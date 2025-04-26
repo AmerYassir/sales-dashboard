@@ -1,7 +1,7 @@
 import { BeatLoader as BL } from "react-spinners";
 
-const BeatLoader = () => {
-  return <BL color="var(--text-primary)" />;
+const BeatLoader = (props) => {
+  return <BL color="var(--text-primary)" {...props} />;
 };
 
 export default BeatLoader;
