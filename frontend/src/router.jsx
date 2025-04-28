@@ -4,6 +4,7 @@ import BeatLoader from "./components/BeatLoader";
 
 import PublicLayout from "./PublicLayout";
 const Home = lazy(() => import("./screens/HomeScreen"));
+const ProductScreen = lazy(() => import("./screens/ProductScreen"));
 const Login = lazy(() => import("./screens/Login"));
 const Signup = lazy(() => import("./screens/Signup"));
 const ErrorElement = lazy(() => import("./screens/ErrorElement"));
@@ -60,6 +61,14 @@ const Router = () => {
           element: (
             <Suspense fallback={<Loading />}>
               <Home />
+            </Suspense>
+          ),
+        },
+        {
+          path: "products/:id",
+          element: (
+            <Suspense fallback={<Loading />}>
+              <ProductScreen />
             </Suspense>
           ),
         },

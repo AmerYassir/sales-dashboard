@@ -37,8 +37,8 @@ const Signup = () => {
           "Content-Type": "application/x-www-form-urlencoded",
         },
       });
-      const { access_token, expire } = response.data;
-      setAuth({ token: access_token, expire: expire });
+      const expireTimestamp = Date.now() + response.data.expire * 1000; // Absolute expiration time
+      setAuth({ ...response.data, expireTimestamp });
       navigate("/");
     } catch (error) {
       if (error.response && error.response.data && error.response.data.detail) {

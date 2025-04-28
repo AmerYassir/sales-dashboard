@@ -16,18 +16,19 @@ const AuthProvider = ({ children }) => {
     const storedAuth = localStorage.getItem("auth");
     if (storedAuth) {
       const parsedAuth = JSON.parse(storedAuth);
-      // Check if token is still valid (expire is in seconds)
-      if (parsedAuth.expire && parsedAuth.expire > 0) {
+      if (parsedAuth.expireTimestamp && parsedAuth.expireTimestamp > Date.now()) {
         return parsedAuth;
       }
     }
-    return { token: null, expire: null };
+    return { access_token: null, expireTimestamp: null };
   });
+
+  const [timeLeft, setTimeLeft] = useState(null);
 
   // Update headers and local storage when auth changes
   useEffect(() => {
-    if (auth.token) {
-      api.defaults.headers.common["Authorization"] = "Bearer " + auth.token;
+    if (auth.access_token) {
+      api.defaults.headers.common["Authorization"] = "Bearer " + auth.access_token;
       localStorage.setItem("auth", JSON.stringify(auth));
     } else {
       delete api.defaults.headers.common["Authorization"];
@@ -35,15 +36,21 @@ const AuthProvider = ({ children }) => {
     }
   }, [auth]);
 
-  // Set a timeout for automatic logout when token expires
+  // Set a timer for automatic logout and track remaining time
   useEffect(() => {
-    if (auth.token && auth.expire && auth.expire > 0) {
-      const expireTime = auth.expire * 1000; // Convert seconds to milliseconds
-      const timer = setTimeout(() => {
-        setAuth({ token: null, expire: null });
-      }, expireTime);
-      // Cleanup timeout on unmount or auth change
-      return () => clearTimeout(timer);
+    if (auth.access_token && auth.expireTimestamp) {
+      const interval = setInterval(() => {
+        const remaining = Math.max(0, auth.expireTimestamp - Date.now());
+        setTimeLeft(Math.round(remaining / 1000));
+        if (remaining <= 0) {
+          setAuth({ access_token: null, expireTimestamp: null });
+          clearInterval(interval);
+        }
+      }, 1000);
+
+      return () => clearInterval(interval);
+    } else {
+      setTimeLeft(null);
     }
   }, [auth]);
 
@@ -52,8 +59,9 @@ const AuthProvider = ({ children }) => {
     () => ({
       auth,
       setAuth,
+      timeLeft,
     }),
-    [auth]
+    [auth, timeLeft]
   );
 
   return <AuthContext value={contextValue}>{children}</AuthContext>;
