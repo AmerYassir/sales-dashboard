@@ -1,26 +1,20 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { NavLink, useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { AgGridReact } from "ag-grid-react";
 import { colorSchemeDark, themeAlpine } from "ag-grid-community";
-import { FaUserCircle, FaSignOutAlt, FaTh, FaTable, FaPlus } from "react-icons/fa";
+import { FaTh, FaTable, FaPlus, FaTrash } from "react-icons/fa";
 import Modal from "../components/Modal";
 import BeatLoader from "../components/BeatLoader";
 
-import { useAuth } from "../context/AuthProvider";
 import api from "../api/axios";
 
 const HomeScreen = () => {
-  const {
-    auth: { username },
-    timeLeft,
-    setAuth,
-  } = useAuth();
   const navigate = useNavigate();
   const [viewType, setViewType] = useState(() => localStorage.getItem("viewType") || "table");
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
+  const [deleteProductModalOptions, setDeleteProductModalOptions] = useState({ isOpen: false, id: null });
   const [errorMessage, setErrorMessage] = useState("");
 
   const themeDark = themeAlpine.withPart(colorSchemeDark);
@@ -45,16 +39,15 @@ const HomeScreen = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries(["products"]);
-      setIsModalOpen(false);
+      setIsAddProductModalOpen(false);
     },
     onError: (error) => {
       setErrorMessage(error.response?.data?.detail || "An error occurred");
     },
   });
-
   const editProductMutation = useMutation({
     mutationFn: async (editedProduct) => {
-      const response = await api.put(`/products/${editedProduct.id}`, { product_id: editedProduct.id, ...editedProduct });
+      const response = await api.put(`/products/${editedProduct.id}`, editedProduct);
       return response.data;
     },
     onSuccess: (data) => {
@@ -63,6 +56,20 @@ const HomeScreen = () => {
     },
     onError: (error) => {
       setErrorMessage(error.response?.data?.detail || "An error occurred");
+    },
+  });
+  const deleteProductMutation = useMutation({
+    mutationFn: async (id) => {
+      const response = await api.delete(`/products/${id}`);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(["products"]);
+      setDeleteProductModalOptions({ isOpen: false, id: null });
+    },
+    onError: (error) => {
+      setErrorMessage(error.response?.data?.detail || "An error occurred");
+      setDeleteProductModalOptions({ isOpen: false, id: null });
     },
   });
 
@@ -76,25 +83,9 @@ const HomeScreen = () => {
     addProductMutation.mutate(data);
   };
 
-  const handleLogout = () => {
-    setAuth({ access_token: null, expireTimeStamp: null });
-    navigate("/login");
+  const handleDelete = (id) => {
+    setDeleteProductModalOptions({ isOpen: true, id });
   };
-
-  const formatTimeLeft = useCallback((seconds) => {
-    if (seconds === null || seconds <= 0) return "0s";
-
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const remainingSeconds = seconds % 60;
-
-    let formatted = "";
-    if (hours > 0) formatted += `${hours}h `;
-    if (minutes > 0 || hours > 0) formatted += `${minutes}m `;
-    formatted += `${remainingSeconds}s`;
-
-    return formatted.trim();
-  }, []);
 
   const IdLinkRenderer = (props) => {
     const id = props.value;
@@ -113,11 +104,20 @@ const HomeScreen = () => {
     { headerName: "Price", field: "price", flex: 0.5, editable: true },
     { headerName: "Stock", field: "stock", flex: 0.5, editable: true },
     { headerName: "Created At", field: "created_at", flex: 1 },
+    {
+      headerName: "",
+      flex: 0.5,
+      cellRenderer: (params) => (
+        <div className="w-full h-full flex justify-center items-center">
+          <FaTrash className="cursor-pointer text-red-500" onClick={() => handleDelete(params.data.id)} />
+        </div>
+      ),
+    },
   ];
 
   const addProductModal = useMemo(
     () => (
-      <Modal title="Add Product" isModalOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
+      <Modal title="Add Product" isModalOpen={isAddProductModalOpen} onClose={() => setIsAddProductModalOpen(false)}>
         <form noValidate onSubmit={handleSubmit(onAddProduct)} className="w-full mt-6 space-y-6">
           {errorMessage && <div className="mb-4 text-red-500">{errorMessage}</div>}
           <div>
@@ -174,36 +174,33 @@ const HomeScreen = () => {
               disabled={addProductMutation.isLoading}
               className="flex w-full justify-center rounded-md px-3 py-1.5 text-sm/6 font-semibold shadow-xs"
             >
-              {addProductMutation.isLoading ? <BeatLoader style={{ lineHeight: "1.25rem" }} /> : "Add Product"}
+              {addProductMutation.isPending ? <BeatLoader style={{ lineHeight: "1.25rem" }} /> : "Add Product"}
             </button>
           </div>
         </form>
       </Modal>
     ),
-    [isModalOpen, errors, register, handleSubmit, addProductMutation.isLoading, errorMessage]
+    [isAddProductModalOpen, errors, register, handleSubmit, addProductMutation, errorMessage]
+  );
+
+  const deleteProductModal = useMemo(
+    () => (
+      <Modal title="Delete Product" isModalOpen={deleteProductModalOptions.isOpen} onClose={() => setDeleteProductModalOptions({ isOpen: false, id: null })}>
+        <p>Are you sure you want to delete this product?</p>
+        <button
+          type="button"
+          onClick={() => deleteProductMutation.mutate(deleteProductModalOptions.id)}
+          className="mt-4 flex w-full justify-center rounded-md px-3 py-1.5 text-sm/6 font-semibold shadow-xs"
+        >
+          {deleteProductMutation.isPending ? <BeatLoader /> : "Delete"}
+        </button>
+      </Modal>
+    ),
+    [deleteProductModalOptions, deleteProductMutation.isPending, setDeleteProductModalOptions]
   );
 
   return (
-    <div className="relative h-full">
-      {/* Navigation Bar */}
-      <nav className="flex justify-between items-center p-4 rounded-lg shadow-2xl bg-neutral-800">
-        <p className="text-3xl font-extrabold">EditableJSON</p>
-        <div className="relative">
-          <button onClick={() => setIsDropdownOpen(!isDropdownOpen)}>
-            <FaUserCircle size={32} />
-          </button>
-          {isDropdownOpen && (
-            <div className="flex flex-col items-center absolute -right-4 mt-8 w-42 rounded-lg shadow-2xl bg-neutral-800 p-2 z-10">
-              <p className="m-0">{username}</p>
-              <hr className="w-full my-3" style={{ color: "var(--text-primary)" }} />
-              <button onClick={handleLogout} className="flex items-center px-4 py-2 w-38">
-                <FaSignOutAlt className="mr-2" /> Log Out
-              </button>
-            </div>
-          )}
-        </div>
-      </nav>
-
+    <>
       {/* Main Content */}
       <main className="p-4 pb-10">
         {isLoading ? (
@@ -238,21 +235,27 @@ const HomeScreen = () => {
 
             {/* Product List */}
             {viewType === "cards" ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {products.map((product) => (
-                  <div
-                    key={product.id}
-                    className="rounded-lg shadow-lg bg-neutral-800 p-4 cursor-pointer hover:shadow-2xl transition-shadow"
-                    onClick={() => navigate(`/products/${product.id}`)}
-                  >
-                    <h2 className="text-xl font-bold">{product.name}</h2>
-                    {/* <p>{product.description}</p> */}
-                    {/* <p>Price: ${product.price}</p>
+              products.length === 0 ? (
+                <div className="flex justify-center items-center h-64">
+                  <p>No products available</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {products.map((product) => (
+                    <div
+                      key={product.id}
+                      className="rounded-lg shadow-lg bg-neutral-800 p-4 cursor-pointer hover:shadow-2xl transition-shadow"
+                      onClick={() => navigate(`/products/${product.id}`)}
+                    >
+                      <h2 className="text-xl font-bold">{product.name}</h2>
+                      {/* <p>{product.description}</p> */}
+                      {/* <p>Price: ${product.price}</p>
                     <p>Stock: {product.stock}</p> */}
-                    <p>Created At: {new Date(product.created_at).toLocaleString()}</p>
-                  </div>
-                ))}
-              </div>
+                      <p>Created At: {new Date(product.created_at).toLocaleString()}</p>
+                    </div>
+                  ))}
+                </div>
+              )
             ) : (
               <AgGridReact
                 columnDefs={columnDefs}
@@ -262,24 +265,28 @@ const HomeScreen = () => {
                 onCellEditingStopped={(event) => {
                   editProductMutation.mutate({ ...event.data });
                 }}
+                noRowsOverlayComponent={() => (
+                  <div className="flex justify-center items-center h-64">
+                    <p>No products available</p>
+                  </div>
+                )}
               />
             )}
           </>
         )}
       </main>
 
-      {/* Session Timer */}
-      <div className="fixed bottom-0 left-0 p-4 text-sm z-10">Session ends in: {formatTimeLeft(timeLeft)}</div>
-
       {/* Create Product Button */}
       <div className="fixed bottom-0 right-0 p-4">
-        <button onClick={() => setIsModalOpen(true)} className="rounded-lg shadow-lg">
+        <button onClick={() => setIsAddProductModalOpen(true)} className="rounded-lg shadow-lg">
           <FaPlus />
         </button>
       </div>
 
+      {/* Modals */}
       {addProductModal}
-    </div>
+      {deleteProductModal}
+    </>
   );
 };
 
