@@ -9,10 +9,11 @@ from app.constants import *
 load_dotenv()
 
 
-class DBClient:
+class DBManager:
     def __init__(self):
         self.connection = None
         self.connect()
+
 
     def connect(self):
         try:
@@ -28,6 +29,7 @@ class DBClient:
         except Exception as e:
             print(f"Error connecting to the database: {e}")
             raise HTTPException(status_code=500, detail="Database connection error")
+    
 
     def create_users_table(self):
         query = """
@@ -40,6 +42,7 @@ class DBClient:
         );
         """
         self.execute_query(query)
+
 
     def create_products_table(self):
         query = """
@@ -56,6 +59,7 @@ class DBClient:
         """
         self.execute_query(query)
 
+
     def create_sales_orders_table(self):
         query = """
         CREATE TABLE IF NOT EXISTS sales_orders (
@@ -70,6 +74,7 @@ class DBClient:
         );
         """
         self.execute_query(query)
+
 
     def insert_value(self, table_name, data):
         # Ensure data is provided as a dictionary
@@ -118,14 +123,8 @@ class DBClient:
             print(f"Unexpected error inserting record into {table_name}: {e}")
             raise HTTPException(status_code=500, detail=str(e))
         return None
-
-    def add_user(self, data):
-        return self.insert_value("users", data)
-
-    def add_product(self, tenant_id, data):
-        data.update({"tenant_id": tenant_id})
-        return self.insert_value("products", data)
     
+
     def update_value(self, table_name, data, filters,tenant_based=True):
         # Ensure data is provided as a dictionary
         if not isinstance(data, dict) or not data:
@@ -183,7 +182,8 @@ class DBClient:
         except Exception as e:
             print(f"Error updating record in {table_name}: {e}")
             raise HTTPException(status_code=500, detail=str(e))
-        
+
+
     def delete_value(self, table_name, filters, tenant_based=True):
         # Ensure filters are provided as a dictionary
         if not isinstance(filters, dict) or not filters:
@@ -227,47 +227,8 @@ class DBClient:
         except Exception as e:
             print(f"Error deleting record from {table_name}: {e}")
             raise HTTPException(status_code=500, detail=str(e))
-        
-    def delete_product(self, tenant_id, product_id):
-        filters = {"id": ["=", product_id], "tenant_id": ["=", tenant_id]}
-        print(f"Deleting product with ID: {product_id} for tenant ID: {tenant_id}")
-        return self.delete_value("products", filters)
-    
-    def update_product(self, tenant_id, product_id, data):
 
-        filters = {"id": ["=", product_id]}
-        data.update({"tenant_id": tenant_id})
-        print(f"Updating product with ID: {product_id}")
-        print(f"Data to update: {data}")
-        print(f"Filters: {filters}")
-        return self.update_value("products", data, filters)
-    
-    def update_user(self, user_id, username, email, password):
-        data = {
-            "username": username,
-            "email": email,
-            "password": password
-        }
-        filters = {"id": ["=", user_id]}
-        return self.update_value("users", data, filters,tenant_based=False)
-    
 
-    def add_sales_order(self, user_id, product_id, quantity, total_price):
-        query = """
-        INSERT INTO sales_orders (user_id, product_id, quantity, total_price)
-        VALUES (%s, %s, %s, %s)
-        RETURNING id;
-        """
-        try:
-            with self.connection.cursor() as cursor:
-                cursor.execute(query, (user_id, product_id, quantity, total_price))
-                order_id = cursor.fetchone()[0]
-                print(f"Sales order added with ID: {order_id}")
-                return order_id
-        except Exception as e:
-            print(f"Error adding sales order: {e}")
-            return None
-        
     def _construct_query(self, tenant_id, table_name, fields, filters, limit=None, offset=None,tenant_based=True):
         # Ensure fields are provided as a list
         if not isinstance(fields, list) or not fields:
@@ -314,6 +275,7 @@ class DBClient:
 
         return query, filter_values
 
+
     def get_value_with_columns(self, tenant_id, table_name, fields, filters, limit=None, offset=None,tenant_based=True):
         query, filter_values = self._construct_query(tenant_id,table_name, fields, filters, limit, offset,tenant_based=tenant_based)
 
@@ -334,6 +296,7 @@ class DBClient:
             print(f"Error executing query: {e}")
             return None
 
+
     def get_value(self, tenant_id, table_name, fields, filters, limit=None, offset=None,tenant_based=True):
         query, filter_values = self._construct_query(tenant_id,table_name, fields, filters, limit, offset,tenant_based=tenant_based)
 
@@ -350,25 +313,7 @@ class DBClient:
         except Exception as e:
             print(f"Error executing query: {e}")
             return None
-        
-    def get_user_by_email(self, email, fields=['password']+DEFAULT_USER_GET_FIELD_KEYS):
-        result = self.get_value_with_columns('1',"users", fields, {"email": ["=", email]},tenant_based=False)
-        return result[0] if result else None
-    
-    def get_user_by_id(self, user_id, fields=DEFAULT_USER_GET_FIELD_KEYS):
-        result=self.get_value_with_columns('1',"users", fields, {"id": ["=",user_id]},tenant_based=False)
-        return result[0] if result else None
 
-    def get_product_by_id(self, tenant_id, product_id, fields=DEFAULT_PRODUCT_GET_FIELD_KEYS):
-        result=self.get_value_with_columns(tenant_id, "products", fields, {"id": ["=",product_id]})
-        return result[0] if result else None
-
-    def get_users_with_paging(self, limit, offset):
-        result =self.get_value_with_columns('1',"users", DEFAULT_USER_GET_FIELD_KEYS, {}, limit, offset,tenant_based=False)
-        return result
-
-    def get_products_with_paging(self, tenant_id, limit, offset):
-        return self.get_value_with_columns(tenant_id, "products", DEFAULT_PRODUCT_GET_FIELD_KEYS, {}, limit, offset)
 
     def get_table_count(self,tenant_id, table_name):
         query = sql.SQL("SELECT COUNT(*) FROM {} WHERE tenant_id={};").format(sql.Identifier(table_name),sql.Literal(tenant_id))
@@ -380,8 +325,8 @@ class DBClient:
         except Exception as e:
             print(f"Error retrieving count for table {table_name}: {e}")
             return None
-
-
+        
+    
     def execute_query(self, query):
         try:
             with self.connection.cursor() as cursor:
@@ -390,12 +335,8 @@ class DBClient:
         except Exception as e:
             print(f"Error executing query: {e}")
 
+
     def close_connection(self):
         if self.connection:
             self.connection.close()
             print("Database connection closed.")
-
-db_client_= DBClient()
-
-def get_db_client():
-    return db_client_

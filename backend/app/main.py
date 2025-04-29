@@ -1,7 +1,6 @@
 from fastapi import FastAPI, HTTPException, Request, Path, Depends, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
-from app.db_client import DBClient
 from contextlib import asynccontextmanager
 from typing import Annotated
 from app.utils import (
@@ -13,7 +12,7 @@ from app.utils import (
 from app.routes.products import router as product_router
 # from routes.users import router as user_router
 from datetime import timedelta
-from app.db_client import db_client_ as db_client
+from app.db.client import db_client_ as db_client
 from app.constants import ACCESS_TOKEN_EXPIRE_SECONDS
 from pydantic import EmailStr
 from app.models.product import Product, UpdateProduct

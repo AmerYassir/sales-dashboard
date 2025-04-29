@@ -2,7 +2,7 @@
 from app.models.product import Product
 from app.utils import token_required
 from app.models.product import Product, UpdateProduct
-from app.db_client import get_db_client
+from app.db.client import get_db_client
 from fastapi import APIRouter, Request,HTTPException,Depends,Path
 from typing import Annotated
 
