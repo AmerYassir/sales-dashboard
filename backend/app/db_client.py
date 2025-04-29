@@ -4,9 +4,10 @@ import psycopg2
 from psycopg2 import sql
 from dotenv import load_dotenv
 from fastapi import HTTPException
-from constants import *
+from app.constants import *
 # Load environment variables from .env file
 load_dotenv()
+
 
 class DBClient:
     def __init__(self):
@@ -26,6 +27,7 @@ class DBClient:
             print("Database connection established.")
         except Exception as e:
             print(f"Error connecting to the database: {e}")
+            raise HTTPException(status_code=500, detail="Database connection error")
 
     def create_users_table(self):
         query = """
@@ -392,3 +394,8 @@ class DBClient:
         if self.connection:
             self.connection.close()
             print("Database connection closed.")
+
+db_client_= DBClient()
+
+def get_db_client():
+    return db_client_

@@ -6,7 +6,7 @@ from jwt import ExpiredSignatureError, InvalidTokenError
 from datetime import datetime, timedelta
 from datetime import timezone
 from typing import Optional
-from constants import SECRET_KEY, ALGORITHM
+from app.constants import SECRET_KEY, ALGORITHM
 from fastapi import HTTPException, Depends, Request
 from starlette.status import HTTP_401_UNAUTHORIZED
 
