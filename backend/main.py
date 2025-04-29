@@ -80,50 +80,31 @@ app.add_middleware(
     allow_headers=["*"],  # Allow all headers
 )
 
+@app.post("/login/")
+async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    """
+    Endpoint to log in a user and return an access token.
+    """
+    user = db_client.get_user_by_email(form_data.username)
+    print(f"Logging in user: {form_data.username}, password: {form_data.password}")
+    print(user)
+    if not user or not verify_password(form_data.password, user["password"]):
+        raise HTTPException(status_code=401, detail="Invalid username or password")
 
-@app.post("/products/")
-@token_required
-async def create_product(request: Request, product: Product, tenant_id: int = None):
-    """
-    Endpoint to create a new product.
-    """
-    print(f"tenant_id: {tenant_id}")
-    print("Creating product: {product}")
-    product_id = db_client.add_product(tenant_id, product.as_dict())
-    if not product_id:
-        raise HTTPException(status_code=500, detail="Failed to create product")
+    access_token_expires = timedelta(seconds=ACCESS_TOKEN_EXPIRE_SECONDS)
+    access_token = create_access_token(
+        data={"sub": user["email"], "tenant_id": user["id"]},
+        expires_delta=access_token_expires,
+    )
+    # return {"access_token": access_token, "token_type": "bearer","expire": access_token_expires}
     return {
-        "product_id": product_id,
-        "status": "created",
-        "product": db_client.get_product_by_id(tenant_id, product_id),
+        "expire": access_token_expires,
+        "username": user["username"],
+        "email": user["email"],
+        "token_type": "bearer",
+        "access_token": access_token,
+        "user_id": user["id"],
     }
-
-
-@app.put("/products/{product_id}")
-@token_required
-async def update_product(
-    request: Request,
-    product_id: Annotated[int, Path(title="The ID of the Product to get", ge=0)],
-    q: str | None = None,
-    product: UpdateProduct | None = None,
-    tenant_id: int | None = None,
-):
-    """
-    Endpoint to update a product by its ID.
-    """
-    if not product:
-        raise HTTPException(status_code=400, detail="Product data is required")
-
-    print(f"Updating product with ID: {product_id}")
-    res = db_client.update_product(tenant_id, product_id, product.as_dict())
-    if res == -1:
-        raise HTTPException(status_code=404, detail="Product not found")
-    return {
-        "product_id": product_id,
-        "status": "updated",
-        "product": db_client.get_product_by_id(tenant_id, product_id),
-    }
-
 
 @app.post("/signup/")
 async def create_user(
@@ -175,6 +156,51 @@ async def create_user(
         "user_id": user_id,
     }
 
+@app.post("/products/")
+@token_required
+async def create_product(request: Request, product: Product, tenant_id: int = None):
+    """
+    Endpoint to create a new product.
+    """
+    print(f"tenant_id: {tenant_id}")
+    print("Creating product: {product}")
+    product_id = db_client.add_product(tenant_id, product.as_dict())
+    if not product_id:
+        raise HTTPException(status_code=500, detail="Failed to create product")
+    return {
+        "product_id": product_id,
+        "status": "created",
+        "product": db_client.get_product_by_id(tenant_id, product_id),
+    }
+
+
+@app.put("/products/{product_id}")
+@token_required
+async def update_product(
+    request: Request,
+    product_id: Annotated[int, Path(title="The ID of the Product to get", ge=0)],
+    q: str | None = None,
+    product: UpdateProduct | None = None,
+    tenant_id: int | None = None,
+):
+    """
+    Endpoint to update a product by its ID.
+    """
+    if not product:
+        raise HTTPException(status_code=400, detail="Product data is required")
+
+    print(f"Updating product with ID: {product_id}")
+    res = db_client.update_product(tenant_id, product_id, product.as_dict())
+    if res == -1:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return {
+        "product_id": product_id,
+        "status": "updated",
+        "product": db_client.get_product_by_id(tenant_id, product_id),
+    }
+
+
+
 
 @app.get("/products/{product_id}")
 @token_required
@@ -187,24 +213,6 @@ async def get_product(request: Request, product_id: str, tenant_id: int = None):
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     return product
-
-
-@app.delete("/products/{product_id}")
-@token_required
-async def delete_product(
-    request: Request,
-    product_id: Annotated[int, Path(title="The ID of the Product to get", ge=0)],
-    tenant_id: int = None,
-):
-    """
-    Endpoint to delete a product by its ID.
-    """
-    print(f"Deleting product with ID: {product_id}")
-    res = db_client.delete_product(tenant_id, product_id)
-    if res == -1:
-        raise HTTPException(status_code=404, detail="Product not found")
-    return {"status": "deleted", "product_id": product_id}
-
 
 @app.get("/products/")
 @token_required
@@ -232,29 +240,19 @@ async def get_products(
         "total_pages": (total_count + page_size - 1) // page_size,
     }
 
-
-@app.post("/login/")
-async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+@app.delete("/products/{product_id}")
+@token_required
+async def delete_product(
+    request: Request,
+    product_id: Annotated[int, Path(title="The ID of the Product to get", ge=0)],
+    tenant_id: int = None,
+):
     """
-    Endpoint to log in a user and return an access token.
+    Endpoint to delete a product by its ID.
     """
-    user = db_client.get_user_by_email(form_data.username)
-    print(f"Logging in user: {form_data.username}, password: {form_data.password}")
-    print(user)
-    if not user or not verify_password(form_data.password, user["password"]):
-        raise HTTPException(status_code=401, detail="Invalid username or password")
+    print(f"Deleting product with ID: {product_id}")
+    res = db_client.delete_product(tenant_id, product_id)
+    if res == -1:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return {"status": "deleted", "product_id": product_id}
 
-    access_token_expires = timedelta(seconds=ACCESS_TOKEN_EXPIRE_SECONDS)
-    access_token = create_access_token(
-        data={"sub": user["email"], "tenant_id": user["id"]},
-        expires_delta=access_token_expires,
-    )
-    # return {"access_token": access_token, "token_type": "bearer","expire": access_token_expires}
-    return {
-        "expire": access_token_expires,
-        "username": user["username"],
-        "email": user["email"],
-        "token_type": "bearer",
-        "access_token": access_token,
-        "user_id": user["id"],
-    }
