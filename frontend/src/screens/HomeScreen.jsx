@@ -38,7 +38,7 @@ const HomeScreen = () => {
   });
 
   const queryClient = useQueryClient();
-  const mutation = useMutation({
+  const addProductMutation = useMutation({
     mutationFn: async (newProduct) => {
       const response = await api.post("/products/", newProduct);
       return response.data;
@@ -52,14 +52,28 @@ const HomeScreen = () => {
     },
   });
 
+  const editProductMutation = useMutation({
+    mutationFn: async (editedProduct) => {
+      const response = await api.put(`/products/${editedProduct.id}`, { product_id: editedProduct.id, ...editedProduct });
+      return response.data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries(["products"]);
+      queryClient.invalidateQueries(["products", data.product_id]);
+    },
+    onError: (error) => {
+      setErrorMessage(error.response?.data?.detail || "An error occurred");
+    },
+  });
+
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm();
 
-  const onSubmit = (data) => {
-    mutation.mutate(data);
+  const onAddProduct = (data) => {
+    addProductMutation.mutate(data);
   };
 
   const handleLogout = () => {
@@ -94,21 +108,17 @@ const HomeScreen = () => {
       cellRenderer: IdLinkRenderer,
       flex: 0.5,
     },
-    { headerName: "Name", field: "name", flex: 1 },
-    { headerName: "Description", field: "description", flex: 2 },
-    { headerName: "Price", field: "price", flex: 0.5 },
-    { headerName: "Stock", field: "stock", flex: 0.5 },
+    { headerName: "Name", field: "name", flex: 1, editable: true },
+    { headerName: "Description", field: "description", flex: 2, editable: true },
+    { headerName: "Price", field: "price", flex: 0.5, editable: true },
+    { headerName: "Stock", field: "stock", flex: 0.5, editable: true },
     { headerName: "Created At", field: "created_at", flex: 1 },
   ];
-
-  const onRowClicked = (event) => {
-    navigate(`/products/${event.data.id}`);
-  };
 
   const addProductModal = useMemo(
     () => (
       <Modal title="Add Product" isModalOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
-        <form noValidate onSubmit={handleSubmit(onSubmit)} className="w-full mt-6 space-y-6">
+        <form noValidate onSubmit={handleSubmit(onAddProduct)} className="w-full mt-6 space-y-6">
           {errorMessage && <div className="mb-4 text-red-500">{errorMessage}</div>}
           <div>
             <label htmlFor="name" className="block text-sm/6 font-medium">
@@ -159,14 +169,18 @@ const HomeScreen = () => {
             {errors.stock && <p className="mt-1 text-sm text-red-500">{errors.stock.message}</p>}
           </div>
           <div>
-            <button type="submit" disabled={mutation.isLoading} className="flex w-full justify-center rounded-md px-3 py-1.5 text-sm/6 font-semibold shadow-xs">
-              {mutation.isLoading ? <BeatLoader style={{ lineHeight: "1.25rem" }} /> : "Add Product"}
+            <button
+              type="submit"
+              disabled={addProductMutation.isLoading}
+              className="flex w-full justify-center rounded-md px-3 py-1.5 text-sm/6 font-semibold shadow-xs"
+            >
+              {addProductMutation.isLoading ? <BeatLoader style={{ lineHeight: "1.25rem" }} /> : "Add Product"}
             </button>
           </div>
         </form>
       </Modal>
     ),
-    [isModalOpen, errors, register, handleSubmit, mutation.isLoading, errorMessage]
+    [isModalOpen, errors, register, handleSubmit, addProductMutation.isLoading, errorMessage]
   );
 
   return (
@@ -240,7 +254,15 @@ const HomeScreen = () => {
                 ))}
               </div>
             ) : (
-              <AgGridReact columnDefs={columnDefs} rowData={products} theme={themeDark} domLayout="autoHeight" />
+              <AgGridReact
+                columnDefs={columnDefs}
+                rowData={products}
+                theme={themeDark}
+                domLayout="autoHeight"
+                onCellEditingStopped={(event) => {
+                  editProductMutation.mutate({ ...event.data });
+                }}
+              />
             )}
           </>
         )}
