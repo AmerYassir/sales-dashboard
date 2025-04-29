@@ -59,9 +59,9 @@ db_client = DBClient()
 async def lifespan(app: FastAPI):
     # Startup logic
 
-    db_client.create_products_table()
-    db_client.create_users_table()
-    db_client.create_sales_orders_table()
+    db_client.create_users_table() # 1
+    db_client.create_products_table() # 2
+    db_client.create_sales_orders_table() # 3
     print("Starting up the application...")
     yield
     # Shutdown logic
