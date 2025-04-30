@@ -15,15 +15,15 @@ from datetime import timedelta
 from app.db.client import db_client_ as db_client
 from app.constants import ACCESS_TOKEN_EXPIRE_SECONDS
 from pydantic import EmailStr
-from app.models.product import Product, UpdateProduct
-
-
+from app.routes.sales_orders import router as sales_order_router
+from app.routes.customers import router as customer_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup logic
 
-    db_client.create_products_table()
     db_client.create_users_table()
+    db_client.create_customers_table()
+    db_client.create_products_table()
     db_client.create_sales_orders_table()
     print("Starting up the application...")
     yield
@@ -44,7 +44,8 @@ app.add_middleware(
 )
 
 app.include_router(product_router, prefix="/products", tags=["products"])
-
+app.include_router(sales_order_router, prefix="/sales_orders", tags=["salesorders"])
+app.include_router(customer_router, prefix="/customers", tags=["customers"])
 
 @app.post("/login/")
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):

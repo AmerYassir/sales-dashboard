@@ -12,10 +12,10 @@ load_dotenv()
 class DBManager:
     def __init__(self):
         self.connection = None
-        self.connect()
+        self._connect()
 
 
-    def connect(self):
+    def _connect(self):
         try:
             self.connection = psycopg2.connect(
                 dbname=os.getenv("DATABASE_NAME"),
@@ -31,52 +31,7 @@ class DBManager:
             raise HTTPException(status_code=500, detail="Database connection error")
     
 
-    def create_users_table(self):
-        query = """
-        CREATE TABLE IF NOT EXISTS users (
-            id SERIAL PRIMARY KEY,
-            username VARCHAR(100) NOT NULL,
-            email VARCHAR(100) UNIQUE NOT NULL,
-            password VARCHAR(255) NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-        """
-        self.execute_query(query)
-
-
-    def create_products_table(self):
-        query = """
-        CREATE TABLE IF NOT EXISTS products (
-            id SERIAL PRIMARY KEY,
-            tenant_id INT NOT NULL,
-            name VARCHAR(100) NOT NULL,
-            description TEXT,
-            price NUMERIC(10, 2) NOT NULL,
-            stock INT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (tenant_id) REFERENCES users(id)
-        );
-        """
-        self.execute_query(query)
-
-
-    def create_sales_orders_table(self):
-        query = """
-        CREATE TABLE IF NOT EXISTS sales_orders (
-            id SERIAL PRIMARY KEY,
-            tenant_id INT NOT NULL,
-            user_id INT REFERENCES users(id),
-            product_id INT REFERENCES products(id),
-            quantity INT NOT NULL,
-            total_price NUMERIC(10, 2) NOT NULL,
-            order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (tenant_id) REFERENCES users(id)
-        );
-        """
-        self.execute_query(query)
-
-
-    def insert_value(self, table_name, data):
+    def _insert_value(self, table_name, data):
         # Ensure data is provided as a dictionary
         if not isinstance(data, dict) or not data:
             raise HTTPException(status_code=400, detail="Data must be a non-empty dictionary")
@@ -125,7 +80,7 @@ class DBManager:
         return None
     
 
-    def update_value(self, table_name, data, filters,tenant_based=True):
+    def _update_value(self, table_name, data, filters,tenant_based=True):
         # Ensure data is provided as a dictionary
         if not isinstance(data, dict) or not data:
             raise HTTPException(status_code=400, detail="Data must be a non-empty dictionary")
@@ -184,7 +139,7 @@ class DBManager:
             raise HTTPException(status_code=500, detail=str(e))
 
 
-    def delete_value(self, table_name, filters, tenant_based=True):
+    def _delete_value(self, table_name, filters, tenant_based=True):
         # Ensure filters are provided as a dictionary
         if not isinstance(filters, dict) or not filters:
             raise HTTPException(status_code=400, detail="Filters must be a non-empty dictionary")
@@ -276,7 +231,7 @@ class DBManager:
         return query, filter_values
 
 
-    def get_value_with_columns(self, tenant_id, table_name, fields, filters, limit=None, offset=None,tenant_based=True):
+    def _get_value_with_columns(self, tenant_id, table_name, fields, filters, limit=None, offset=None,tenant_based=True):
         query, filter_values = self._construct_query(tenant_id,table_name, fields, filters, limit, offset,tenant_based=tenant_based)
 
         # Execute the query
@@ -297,7 +252,7 @@ class DBManager:
             return None
 
 
-    def get_value(self, tenant_id, table_name, fields, filters, limit=None, offset=None,tenant_based=True):
+    def _get_value(self, tenant_id, table_name, fields, filters, limit=None, offset=None,tenant_based=True):
         query, filter_values = self._construct_query(tenant_id,table_name, fields, filters, limit, offset,tenant_based=tenant_based)
 
         # Execute the query
@@ -315,7 +270,7 @@ class DBManager:
             return None
 
 
-    def get_table_count(self,tenant_id, table_name):
+    def _get_table_count(self,tenant_id, table_name):
         query = sql.SQL("SELECT COUNT(*) FROM {} WHERE tenant_id={};").format(sql.Identifier(table_name),sql.Literal(tenant_id))
         try:
             with self.connection.cursor() as cursor:
@@ -327,7 +282,7 @@ class DBManager:
             return None
         
     
-    def execute_query(self, query):
+    def _execute_query(self, query):
         try:
             with self.connection.cursor() as cursor:
                 cursor.execute(query)

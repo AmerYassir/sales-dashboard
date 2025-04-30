@@ -9,6 +9,7 @@ from typing import Optional
 from app.constants import SECRET_KEY, ALGORITHM
 from fastapi import HTTPException, Depends, Request
 from starlette.status import HTTP_401_UNAUTHORIZED
+from app.db.client import get_db_client
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -32,13 +33,15 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     return encoded_jwt
 
 from functools import wraps
-
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login") 
 def token_required(func):
     @wraps(func)
     async def wrapper(*args,**kwargs):
-        request= kwargs.get('request')
-        oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")  # Create instance here
-        tenant_id = None
+        request: Request = kwargs.get('request') or (kwargs.get('commons', {}) or {}).get('request')
+        if not request:
+            raise HTTPException(status_code=400, detail="Request object is missing")
+        
+        tenant_id : Optional[str] = None
         try:
             token_string = await oauth2_scheme(request=request) 
             payload = jwt.decode(token_string, SECRET_KEY, algorithms=[ALGORITHM])
@@ -62,6 +65,21 @@ def token_required(func):
                 detail=f"Missing token_id in header: {str(e)}",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        kwargs['tenant_id'] = tenant_id
+        if kwargs.__contains__('commons'):
+            kwargs['commons']['tenant_id'] = tenant_id
+        elif kwargs.__contains__('tenant_id'):
+            kwargs['tenant_id'] = tenant_id
+        print(f"Tenant ID: {tenant_id}")
+        print(f"kwargs: {kwargs}")
         return await func(*args, **kwargs)
     return wrapper
+
+def common_request_params(request:Request,tenant_id:int=None, db_client=Depends(get_db_client)):
+    """
+    Common parameters for sales order operations.
+    """
+    return {
+        "tenant_id": tenant_id,
+        "db_client": db_client,
+        "request": request,
+    }
