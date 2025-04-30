@@ -31,13 +31,14 @@ services:
   backend:
     image: fastapi.dev # Use the image you built with Dockerfile.dev
     build:
-      context: ./backend
+      context: ./backend/app
       dockerfile: Dockerfile.dev
     container_name: sales-dashboard-dev
+    working_dir: /code
     ports:
       - "8000:8000"
     volumes:
-      - ./backend:/code/app # Mount your local project directory to /app inside the container
+      - ./backend/:/code/ # Mount your local project directory to /app inside the container
     env_file:
       - .env
     depends_on:

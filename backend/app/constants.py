@@ -13,6 +13,29 @@ DEFAULT_PRODUCT_GET_FIELD_KEYS = [
     "price",
     "stock",
 ]
+# Default sales order field keys
+DEFAULT_SALES_ORDER_GET_FIELD_KEYS = [
+    "id",
+    "total_quantity",
+    "customer_id",
+    "order_date",
+    "order_status",
+    "order_total",
+]
+DEFAULT_SALES_ORDER_ITEM_GET_FIELD_KEYS = [
+    "id",
+    "product_id",
+    "quantity",
+    "unit_price",
+    "total_price",
+]
+DEFAULT_CUSTOMER_GET_FIELD_KEYS = [
+    "id",
+    "name",
+    "email",
+    "phone",
+    "address",
+]
 # Filter operators for validation
 FILTER_OPERATORS = [
     "=",

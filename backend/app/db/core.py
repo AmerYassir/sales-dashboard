@@ -4,16 +4,18 @@ import psycopg2
 from psycopg2 import sql
 from dotenv import load_dotenv
 from fastapi import HTTPException
-from constants import *
+from app.constants import *
 # Load environment variables from .env file
 load_dotenv()
 
-class DBClient:
+
+class DBManager:
     def __init__(self):
         self.connection = None
-        self.connect()
+        self._connect()
 
-    def connect(self):
+
+    def _connect(self):
         try:
             self.connection = psycopg2.connect(
                 dbname=os.getenv("DATABASE_NAME"),
@@ -26,50 +28,10 @@ class DBClient:
             print("Database connection established.")
         except Exception as e:
             print(f"Error connecting to the database: {e}")
+            raise HTTPException(status_code=500, detail="Database connection error")
+    
 
-    def create_users_table(self):
-        query = """
-        CREATE TABLE IF NOT EXISTS users (
-            id SERIAL PRIMARY KEY,
-            username VARCHAR(100) NOT NULL,
-            email VARCHAR(100) UNIQUE NOT NULL,
-            password VARCHAR(255) NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-        """
-        self.execute_query(query)
-
-    def create_products_table(self):
-        query = """
-        CREATE TABLE IF NOT EXISTS products (
-            id SERIAL PRIMARY KEY,
-            tenant_id INT NOT NULL,
-            name VARCHAR(100) NOT NULL,
-            description TEXT,
-            price NUMERIC(10, 2) NOT NULL,
-            stock INT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (tenant_id) REFERENCES users(id)
-        );
-        """
-        self.execute_query(query)
-
-    def create_sales_orders_table(self):
-        query = """
-        CREATE TABLE IF NOT EXISTS sales_orders (
-            id SERIAL PRIMARY KEY,
-            tenant_id INT NOT NULL,
-            user_id INT REFERENCES users(id),
-            product_id INT REFERENCES products(id),
-            quantity INT NOT NULL,
-            total_price NUMERIC(10, 2) NOT NULL,
-            order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (tenant_id) REFERENCES users(id)
-        );
-        """
-        self.execute_query(query)
-
-    def insert_value(self, table_name, data):
+    def _insert_value(self, table_name, data):
         # Ensure data is provided as a dictionary
         if not isinstance(data, dict) or not data:
             raise HTTPException(status_code=400, detail="Data must be a non-empty dictionary")
@@ -116,15 +78,9 @@ class DBClient:
             print(f"Unexpected error inserting record into {table_name}: {e}")
             raise HTTPException(status_code=500, detail=str(e))
         return None
-
-    def add_user(self, data):
-        return self.insert_value("users", data)
-
-    def add_product(self, tenant_id, data):
-        data.update({"tenant_id": tenant_id})
-        return self.insert_value("products", data)
     
-    def update_value(self, table_name, data, filters,tenant_based=True):
+
+    def _update_value(self, table_name, data, filters,tenant_based=True):
         # Ensure data is provided as a dictionary
         if not isinstance(data, dict) or not data:
             raise HTTPException(status_code=400, detail="Data must be a non-empty dictionary")
@@ -181,8 +137,9 @@ class DBClient:
         except Exception as e:
             print(f"Error updating record in {table_name}: {e}")
             raise HTTPException(status_code=500, detail=str(e))
-        
-    def delete_value(self, table_name, filters, tenant_based=True):
+
+
+    def _delete_value(self, table_name, filters, tenant_based=True):
         # Ensure filters are provided as a dictionary
         if not isinstance(filters, dict) or not filters:
             raise HTTPException(status_code=400, detail="Filters must be a non-empty dictionary")
@@ -225,47 +182,8 @@ class DBClient:
         except Exception as e:
             print(f"Error deleting record from {table_name}: {e}")
             raise HTTPException(status_code=500, detail=str(e))
-        
-    def delete_product(self, tenant_id, product_id):
-        filters = {"id": ["=", product_id], "tenant_id": ["=", tenant_id]}
-        print(f"Deleting product with ID: {product_id} for tenant ID: {tenant_id}")
-        return self.delete_value("products", filters)
-    
-    def update_product(self, tenant_id, product_id, data):
 
-        filters = {"id": ["=", product_id]}
-        data.update({"tenant_id": tenant_id})
-        print(f"Updating product with ID: {product_id}")
-        print(f"Data to update: {data}")
-        print(f"Filters: {filters}")
-        return self.update_value("products", data, filters)
-    
-    def update_user(self, user_id, username, email, password):
-        data = {
-            "username": username,
-            "email": email,
-            "password": password
-        }
-        filters = {"id": ["=", user_id]}
-        return self.update_value("users", data, filters,tenant_based=False)
-    
 
-    def add_sales_order(self, user_id, product_id, quantity, total_price):
-        query = """
-        INSERT INTO sales_orders (user_id, product_id, quantity, total_price)
-        VALUES (%s, %s, %s, %s)
-        RETURNING id;
-        """
-        try:
-            with self.connection.cursor() as cursor:
-                cursor.execute(query, (user_id, product_id, quantity, total_price))
-                order_id = cursor.fetchone()[0]
-                print(f"Sales order added with ID: {order_id}")
-                return order_id
-        except Exception as e:
-            print(f"Error adding sales order: {e}")
-            return None
-        
     def _construct_query(self, tenant_id, table_name, fields, filters, limit=None, offset=None,tenant_based=True):
         # Ensure fields are provided as a list
         if not isinstance(fields, list) or not fields:
@@ -312,7 +230,8 @@ class DBClient:
 
         return query, filter_values
 
-    def get_value_with_columns(self, tenant_id, table_name, fields, filters, limit=None, offset=None,tenant_based=True):
+
+    def _get_value_with_columns(self, tenant_id, table_name, fields, filters, limit=None, offset=None,tenant_based=True):
         query, filter_values = self._construct_query(tenant_id,table_name, fields, filters, limit, offset,tenant_based=tenant_based)
 
         # Execute the query
@@ -332,7 +251,8 @@ class DBClient:
             print(f"Error executing query: {e}")
             return None
 
-    def get_value(self, tenant_id, table_name, fields, filters, limit=None, offset=None,tenant_based=True):
+
+    def _get_value(self, tenant_id, table_name, fields, filters, limit=None, offset=None,tenant_based=True):
         query, filter_values = self._construct_query(tenant_id,table_name, fields, filters, limit, offset,tenant_based=tenant_based)
 
         # Execute the query
@@ -348,27 +268,9 @@ class DBClient:
         except Exception as e:
             print(f"Error executing query: {e}")
             return None
-        
-    def get_user_by_email(self, email, fields=['password']+DEFAULT_USER_GET_FIELD_KEYS):
-        result = self.get_value_with_columns('1',"users", fields, {"email": ["=", email]},tenant_based=False)
-        return result[0] if result else None
-    
-    def get_user_by_id(self, user_id, fields=DEFAULT_USER_GET_FIELD_KEYS):
-        result=self.get_value_with_columns('1',"users", fields, {"id": ["=",user_id]},tenant_based=False)
-        return result[0] if result else None
 
-    def get_product_by_id(self, tenant_id, product_id, fields=DEFAULT_PRODUCT_GET_FIELD_KEYS):
-        result=self.get_value_with_columns(tenant_id, "products", fields, {"id": ["=",product_id]})
-        return result[0] if result else None
 
-    def get_users_with_paging(self, limit, offset):
-        result =self.get_value_with_columns('1',"users", DEFAULT_USER_GET_FIELD_KEYS, {}, limit, offset,tenant_based=False)
-        return result
-
-    def get_products_with_paging(self, tenant_id, limit, offset):
-        return self.get_value_with_columns(tenant_id, "products", DEFAULT_PRODUCT_GET_FIELD_KEYS, {}, limit, offset)
-
-    def get_table_count(self,tenant_id, table_name):
+    def _get_table_count(self,tenant_id, table_name):
         query = sql.SQL("SELECT COUNT(*) FROM {} WHERE tenant_id={};").format(sql.Identifier(table_name),sql.Literal(tenant_id))
         try:
             with self.connection.cursor() as cursor:
@@ -378,15 +280,16 @@ class DBClient:
         except Exception as e:
             print(f"Error retrieving count for table {table_name}: {e}")
             return None
-
-
-    def execute_query(self, query):
+        
+    
+    def _execute_query(self, query):
         try:
             with self.connection.cursor() as cursor:
                 cursor.execute(query)
                 print("Query executed successfully.")
         except Exception as e:
             print(f"Error executing query: {e}")
+
 
     def close_connection(self):
         if self.connection:
