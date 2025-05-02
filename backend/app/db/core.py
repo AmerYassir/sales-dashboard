@@ -270,7 +270,7 @@ class DBManager:
             return None
 
 
-    def _get_table_count(self,tenant_id, table_name):
+    def get_table_count(self,tenant_id, table_name):
         query = sql.SQL("SELECT COUNT(*) FROM {} WHERE tenant_id={};").format(sql.Identifier(table_name),sql.Literal(tenant_id))
         try:
             with self.connection.cursor() as cursor:

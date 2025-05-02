@@ -40,7 +40,7 @@ const PublicLayout = () => {
       <div className="w-full h-full p-5 relative">
         {/* Navigation Bar */}
         <nav className="flex justify-between items-center p-4 rounded-lg shadow-2xl bg-neutral-800">
-          <p className="text-3xl font-extrabold">EditableJSON</p>
+          <p className="text-3xl font-extrabold cursor-pointer" onClick={() => navigate("/")}>EditableJSON</p>
           <div className="relative">
             <button onClick={() => setIsDropdownOpen(!isDropdownOpen)}>
               <FaUserCircle size={32} />

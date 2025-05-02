@@ -3,8 +3,11 @@ import { createBrowserRouter, RouterProvider } from "react-router";
 import BeatLoader from "./components/BeatLoader";
 
 import PublicLayout from "./PublicLayout";
-const Home = lazy(() => import("./screens/HomeScreen"));
+const HomeScreen = lazy(() => import("./screens/HomeScreen"));
+const Products = lazy(() => import("./screens/Products"));
 const ProductScreen = lazy(() => import("./screens/ProductScreen"));
+const Customers = lazy(() => import("./screens/Customers"));
+const CustomerScreen = lazy(() => import("./screens/CustomerScreen"));
 const Login = lazy(() => import("./screens/Login"));
 const Signup = lazy(() => import("./screens/Signup"));
 const ErrorElement = lazy(() => import("./screens/ErrorElement"));
@@ -60,7 +63,15 @@ const Router = () => {
           index: true,
           element: (
             <Suspense fallback={<Loading />}>
-              <Home />
+              <HomeScreen />
+            </Suspense>
+          ),
+        },
+        {
+          path: "/products",
+          element: (
+            <Suspense fallback={<Loading />}>
+              <Products />
             </Suspense>
           ),
         },
@@ -69,6 +80,23 @@ const Router = () => {
           element: (
             <Suspense fallback={<Loading />}>
               <ProductScreen />
+            </Suspense>
+          ),
+        },
+        {
+          index: true,
+          path: "/customers",
+          element: (
+            <Suspense fallback={<Loading />}>
+              <Customers />
+            </Suspense>
+          ),
+        },
+        {
+          path: "customers/:id",
+          element: (
+            <Suspense fallback={<Loading />}>
+              <CustomerScreen />
             </Suspense>
           ),
         },
