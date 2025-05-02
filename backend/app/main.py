@@ -10,6 +10,7 @@ from app.utils import (
     token_required,
 )
 from app.routes.products import router as product_router
+
 # from routes.users import router as user_router
 from datetime import timedelta
 from app.db.client import db_client_ as db_client
@@ -17,6 +18,8 @@ from app.constants import ACCESS_TOKEN_EXPIRE_SECONDS
 from pydantic import EmailStr
 from app.routes.sales_orders import router as sales_order_router
 from app.routes.customers import router as customer_router
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup logic
@@ -34,6 +37,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+app.include_router(product_router, prefix="/products", tags=["products"])
+app.include_router(sales_order_router, prefix="/sales_orders", tags=["salesorders"])
+app.include_router(customer_router, prefix="/customers", tags=["customers"])
+
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
@@ -43,9 +50,6 @@ app.add_middleware(
     allow_headers=["*"],  # Allow all headers
 )
 
-app.include_router(product_router, prefix="/products", tags=["products"])
-app.include_router(sales_order_router, prefix="/sales_orders", tags=["salesorders"])
-app.include_router(customer_router, prefix="/customers", tags=["customers"])
 
 @app.post("/login/")
 async def login(form_data: OAuth2PasswordRequestForm = Depends()):

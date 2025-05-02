@@ -8,7 +8,7 @@ import Modal from "../components/Modal";
 import BeatLoader from "../components/BeatLoader";
 import api from "../api/axios";
 
-const ProductScreen = () => {
+const CustomerScreen = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -17,13 +17,13 @@ const ProductScreen = () => {
   const [errorMessage, setErrorMessage] = useState("");
 
   const {
-    data: product,
+    data: customer,
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["product", id],
+    queryKey: ["customer", id],
     queryFn: async () => {
-      const response = await api.get(`/products/${id}`);
+      const response = await api.get(`/customers/${id}`);
       return response.data;
     },
   });
@@ -36,19 +36,19 @@ const ProductScreen = () => {
   } = useForm();
 
   useEffect(() => {
-    if (product) {
-      reset(product);
+    if (customer) {
+      reset(customer);
     }
-  }, [product, reset]);
+  }, [customer, reset]);
 
-  const { mutate: updateProduct, isPending: updateProductMutationIsPending } = useMutation({
-    mutationFn: async (updatedProduct) => {
-      const response = await api.put(`/products/${id}`, updatedProduct);
+  const { mutate: updateCustomer, isPending: updateCustomerMutationIsPending } = useMutation({
+    mutationFn: async (updatedCustomer) => {
+      const response = await api.put(`/customers/${id}`, updatedCustomer);
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(["product", id]);
-      queryClient.invalidateQueries(["products"]);
+      queryClient.invalidateQueries(["customer", id]);
+      queryClient.invalidateQueries(["customers"]);
       setIsEditMode(false);
       setErrorMessage("");
     },
@@ -57,13 +57,13 @@ const ProductScreen = () => {
     },
   });
 
-  const { mutate: deleteProduct, isPending: deleteProductMutationIsPending } = useMutation({
+  const { mutate: deleteCustomer, isPending: deleteCustomerMutationIsPending } = useMutation({
     mutationFn: async (id) => {
-      const response = await api.delete(`/products/${id}`);
+      const response = await api.delete(`/customers/${id}`);
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries(["products"]);
+      queryClient.invalidateQueries(["customers"]);
       navigate("/");
     },
     onError: (error) => {
@@ -73,23 +73,23 @@ const ProductScreen = () => {
   });
 
   const onSubmit = (data) => {
-    updateProduct(data);
+    updateCustomer(data);
   };
 
   const deleteModal = useMemo(
     () => (
-      <Modal title="Delete Product" isModalOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)}>
-        <p>Are you sure you want to delete this product?</p>
+      <Modal title="Delete Customer" isModalOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)}>
+        <p>Are you sure you want to delete this customer?</p>
         <button
           type="button"
-          onClick={() => deleteProduct(id)}
+          onClick={() => deleteCustomer(id)}
           className="mt-4 flex w-full justify-center rounded-md px-3 py-1.5 text-sm/6 font-semibold shadow-xs"
         >
-          {deleteProductMutationIsPending ? <BeatLoader /> : "Delete"}
+          {deleteCustomerMutationIsPending ? <BeatLoader /> : "Delete"}
         </button>
       </Modal>
     ),
-    [isDeleteModalOpen, deleteProductMutationIsPending, id]
+    [isDeleteModalOpen, deleteCustomerMutationIsPending, id]
   );
 
   if (isLoading) {
@@ -111,10 +111,10 @@ const ProductScreen = () => {
       </button>
       <div className="rounded-lg shadow-lg bg-neutral-800 p-4">
         {isEditMode ? (
-          <h1 className="text-2xl font-bold mb-4">Edit: {product.name}</h1>
+          <h1 className="text-2xl font-bold mb-4">Edit: {customer.name}</h1>
         ) : (
           <div className="flex items-center mb-4">
-            <h1 className="text-2xl font-bold">{product.name}</h1>
+            <h1 className="text-2xl font-bold">{customer.name}</h1>
             <button onClick={() => setIsEditMode(true)} className="ml-4">
               <FaEdit />
             </button>
@@ -123,68 +123,73 @@ const ProductScreen = () => {
             </button>
           </div>
         )}
-        <p>ID: {product.id}</p>
-        <p>Created At: {new Date(product.created_at).toLocaleString()}</p>
+        <p>ID: {customer.id}</p>
+        <p>Created At: {new Date(customer.created_at).toLocaleString()}</p>
         {errorMessage && <div className="mb-4 text-red-500">{errorMessage}</div>}
         <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-6">
           <div>
             <label htmlFor="name" className="block text-sm/6 font-medium">
-              Product Name
+              Customer Name
             </label>
             <input
               id="name"
               type="text"
               disabled={!isEditMode}
               className={`block w-full rounded-md border ${errors.name ? "border-red-500" : "border-gray-300"} px-3 py-1.5 text-base sm:text-sm/6`}
-              {...register("name", { required: "*Product name is required" })}
+              {...register("name", { required: "*Customer name is required" })}
             />
             {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name.message}</p>}
           </div>
           <div>
-            <label htmlFor="description" className="block text-sm/6 font-medium">
-              Description
+            <label htmlFor="email" className="block text-sm/6 font-medium">
+              Email address
+            </label>
+            <input
+              id="email"
+              type="email"
+              disabled={!isEditMode}
+              className={`block w-full rounded-md border ${errors.email ? "border-red-500" : "border-gray-300"} px-3 py-1.5 text-base sm:text-sm/6`}
+              {...register("email", {
+                required: "*Email is required",
+                pattern: { value: /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/g, message: "*Invalid email address" },
+              })}
+            />
+            {errors.email && <p className="mt-1 text-sm text-red-500">{errors.email.message}</p>}
+          </div>
+          <div>
+            <label htmlFor="phone" className="block text-sm/6 font-medium">
+              Phone number
+            </label>
+            <input
+              id="phone"
+              type="tel"
+              disabled={!isEditMode}
+              className={`block w-full rounded-md border ${errors.phone ? "border-red-500" : "border-gray-300"} px-3 py-1.5 text-base sm:text-sm/6`}
+              {...register("phone", {
+                required: "*Phone number is required",
+                pattern: { value: /^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$/, message: "*Invalid phone number" },
+              })}
+            />
+            {errors.phone && <p className="mt-1 text-sm text-red-500">{errors.phone.message}</p>}
+          </div>
+          <div>
+            <label htmlFor="address" className="block text-sm/6 font-medium">
+              Address
             </label>
             <textarea
-              id="description"
+              id="address"
               disabled={!isEditMode}
-              className={`block w-full rounded-md border ${errors.description ? "border-red-500" : "border-gray-300"} px-3 py-1.5 text-base sm:text-sm/6`}
-              {...register("description", { required: "*Description is required" })}
+              className={`block w-full rounded-md border ${errors.address ? "border-red-500" : "border-gray-300"} px-3 py-1.5 text-base sm:text-sm/6`}
+              {...register("address", { required: "*Address is required" })}
             />
-            {errors.description && <p className="mt-1 text-sm text-red-500">{errors.description.message}</p>}
-          </div>
-          <div>
-            <label htmlFor="price" className="block text-sm/6 font-medium">
-              Price
-            </label>
-            <input
-              id="price"
-              type="number"
-              step="0.01"
-              disabled={!isEditMode}
-              className={`block w-full rounded-md border ${errors.price ? "border-red-500" : "border-gray-300"} px-3 py-1.5 text-base sm:text-sm/6`}
-              {...register("price", { required: "*Price is required", valueAsNumber: true })}
-            />
-            {errors.price && <p className="mt-1 text-sm text-red-500">{errors.price.message}</p>}
-          </div>
-          <div>
-            <label htmlFor="stock" className="block text-sm/6 font-medium">
-              Stock
-            </label>
-            <input
-              id="stock"
-              type="number"
-              disabled={!isEditMode}
-              className={`block w-full rounded-md border ${errors.stock ? "border-red-500" : "border-gray-300"} px-3 py-1.5 text-base sm:text-sm/6`}
-              {...register("stock", { required: "*Stock is required", valueAsNumber: true })}
-            />
-            {errors.stock && <p className="mt-1 text-sm text-red-500">{errors.stock.message}</p>}
+            {errors.address && <p className="mt-1 text-sm text-red-500">{errors.address.message}</p>}
           </div>
           {isEditMode && (
             <div className="flex justify-between gap-3 mt-6">
               <button
                 type="button"
                 onClick={() => {
-                  reset(product);
+                  reset(customer);
                   setIsEditMode(false);
                   setErrorMessage("");
                 }}
@@ -194,10 +199,10 @@ const ProductScreen = () => {
               </button>
               <button
                 type="submit"
-                disabled={updateProductMutationIsPending}
+                disabled={updateCustomerMutationIsPending}
                 className="flex justify-center rounded-md px-3 py-1.5 text-sm/6 font-semibold shadow-xs w-full"
               >
-                {updateProductMutationIsPending ? <BeatLoader style={{ lineHeight: "1.25rem" }} /> : "Save"}
+                {updateCustomerMutationIsPending ? <BeatLoader style={{ lineHeight: "1.25rem" }} /> : "Save"}
               </button>
             </div>
           )}
@@ -208,4 +213,4 @@ const ProductScreen = () => {
   );
 };
 
-export default ProductScreen;
+export default CustomerScreen;
