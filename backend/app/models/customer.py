@@ -20,8 +20,8 @@ class UpdateCustomer(BaseModel):
     
 class CustomerResponse(BaseModel):
     id: int
-    name: Optional[str]
-    email: Optional[str]
-    phone: Optional[str]
-    address: Optional[str]
+    name: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    address: str | None = None
 

@@ -22,15 +22,24 @@ async def create_sales_order(order:SalesOrder,commons:dict=Depends(common_reques
 # Read all sales orders (mock)
 @router.get("/")
 @token_required
-async def get_sales_orders(commons:dict=Depends(common_request_params), limit: int = 10, offset: int = 0,):
-    if limit <= 0 or offset < 0:
-        raise HTTPException(status_code=400, detail="Limit must be greater than 0 and offset must be non-negative.")
-    
-    sales_orders = commons['db_client'].get_sales_orders_with_paging(commons['tenant_id'], limit=limit, offset=offset)
+async def get_sales_orders(commons:dict=Depends(common_request_params), page: int = 1, page_size: int = 10,):
+    if page <= 0 or page_size < 0:
+        raise HTTPException(status_code=400, detail="page must be greater than 0 and offset must be non-negative.")
+    tenant_id = commons['tenant_id']
+    db_client = commons['db_client']
+    offset = (page - 1) * page_size
+    sales_orders = db_client.get_sales_orders_with_paging(tenant_id, limit=page, offset=offset)
     print(f"Sales orders: {sales_orders}")
-    if not sales_orders:
-        raise HTTPException(status_code=404, detail="No sales orders found.")
-    return sales_orders
+
+    total_count = db_client.get_table_count(tenant_id, "sales_orders")
+    print(f"Total products count: {total_count}")
+    return {
+        "sales_orders": sales_orders,
+        "page": page,
+        "page_size": page_size,
+        "total_count": total_count,
+        "total_pages": (total_count + page_size - 1) // page_size,
+    }
 
 # Read a single sales order by ID (mock)
 @router.get("/{order_id}")

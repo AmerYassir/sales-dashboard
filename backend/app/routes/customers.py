@@ -15,7 +15,8 @@ async def create_customer(customer: Customer, commons: dict = Depends(common_req
 @token_required
 async def get_customer(customer_id: int,commons: dict = Depends(common_request_params)):
     customer=commons.get("db_client").get_customer_by_id(commons.get("tenant_id"), customer_id)
-    print(f"Customer: {customer}")
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
     return customer
 
 # Update a customer
@@ -39,11 +40,18 @@ async def delete_customer(customer_id: int,commons: dict = Depends(common_reques
     
 @router.get("/")
 @token_required
-async def get_customers(commons: dict = Depends(common_request_params), limit: int = 10, offset: int = 0):
-    if limit <= 0 or offset < 0:
-        raise HTTPException(status_code=400, detail="Limit must be greater than 0 and offset must be non-negative.")
+async def get_customers(commons: dict = Depends(common_request_params), page: int = 1, page_size: int = 10):
+    if page <= 0 or page_size < 0:
+        raise HTTPException(status_code=400, detail="Page and Page_size must be greater than 0 and offset must be non-negative.")
     
-    customers = commons.get("db_client").get_customers_with_paging(commons.get("tenant_id"), limit=limit, offset=offset)
-    if not customers:
-        raise HTTPException(status_code=404, detail="No customers found.")
-    return customers
+    offset = (page - 1) * page_size
+    customers = commons.get("db_client").get_customers_with_paging(commons.get("tenant_id"), limit=page_size, offset=offset)
+    offset = (page - 1) * page_size
+    total_count = commons.get("db_client").get_table_count(commons.get("tenant_id"), "customers")
+    return {
+        "customers": customers,
+        "page": page,
+        "page_size": page_size,
+        "total_count": total_count,
+        "total_pages": (total_count + page_size - 1) // page_size,
+    }

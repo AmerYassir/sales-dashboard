@@ -177,8 +177,7 @@ class DBClient(DBManager):
 
     def get_sales_orders_with_paging(self, tenant_id, limit, offset):
         sale_orders=self._get_value_with_columns(tenant_id, "sales_orders", DEFAULT_SALES_ORDER_GET_FIELD_KEYS, {}, limit, offset)
-        if not sale_orders:
-            return None
+        
         for order in sale_orders:
             order["items"] = self.get_sales_order_items_by_order_id(tenant_id, order["id"])
         return sale_orders
@@ -230,8 +229,7 @@ class DBClient(DBManager):
         return result[0] if result else None
     
     def get_customers_with_paging(self, tenant_id, limit, offset):
-        result=self._get_value_with_columns(tenant_id, "customers", DEFAULT_CUSTOMER_GET_FIELD_KEYS, {}, limit, offset)
-        return result if result else None
+        return self._get_value_with_columns(tenant_id, "customers", DEFAULT_CUSTOMER_GET_FIELD_KEYS, {}, limit, offset)
     
     def delete_customer(self, tenant_id, customer_id):
         filters = {"id": ["=", customer_id], "tenant_id": ["=", tenant_id]}
