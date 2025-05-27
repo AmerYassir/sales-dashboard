@@ -106,7 +106,7 @@ const CustomerScreen = () => {
 
   return (
     <div className="p-4">
-      <button onClick={() => navigate("/")} className="mb-4">
+      <button onClick={() => navigate("/customers")} className="mb-4">
         Back to Home
       </button>
       <div className="rounded-lg shadow-lg bg-neutral-800 p-4">
