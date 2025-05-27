@@ -172,7 +172,7 @@ const Products = () => {
             <button
               type="submit"
               disabled={addProductMutationIsPending}
-              className="flex w-full justify-center rounded-md px-3 py-1.5 text-sm/6 font-semibold shadow-xs"
+              className="flex w-full justify-center rounded-md px-3 py-1.5 text-sm/6 font-semibold shadow-xs bg-blue-500 text-white hover:bg-blue-600"
             >
               {addProductMutationIsPending ? <BeatLoader style={{ lineHeight: "1.25rem" }} /> : "Add Product"}
             </button>
@@ -190,7 +190,7 @@ const Products = () => {
         <button
           type="button"
           onClick={() => deleteProduct(deleteProductModalOptions.id)}
-          className="mt-4 flex w-full justify-center rounded-md px-3 py-1.5 text-sm/6 font-semibold shadow-xs"
+          className="mt-4 flex w-full justify-center rounded-md px-3 py-1.5 text-sm/6 font-semibold shadow-xs bg-red-500 text-white hover:bg-red-600"
         >
           {deleteProductMutationIsPending ? <BeatLoader /> : "Delete"}
         </button>
@@ -278,7 +278,7 @@ const Products = () => {
 
       {/* Create Product Button */}
       <div className="fixed bottom-0 right-0 p-4">
-        <button onClick={() => setIsAddProductModalOpen(true)} className="rounded-lg shadow-lg">
+        <button onClick={() => setIsAddProductModalOpen(true)} className="rounded-lg shadow-lg bg-blue-500 text-white p-3 hover:bg-blue-600">
           <FaPlus />
         </button>
       </div>

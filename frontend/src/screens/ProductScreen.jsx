@@ -83,7 +83,7 @@ const ProductScreen = () => {
         <button
           type="button"
           onClick={() => deleteProduct(id)}
-          className="mt-4 flex w-full justify-center rounded-md px-3 py-1.5 text-sm/6 font-semibold shadow-xs"
+          className="mt-4 flex w-full justify-center rounded-md px-3 py-1.5 text-sm/6 font-semibold shadow-xs bg-red-500 text-white hover:bg-red-600"
         >
           {deleteProductMutationIsPending ? <BeatLoader /> : "Delete"}
         </button>
@@ -195,7 +195,7 @@ const ProductScreen = () => {
               <button
                 type="submit"
                 disabled={updateProductMutationIsPending}
-                className="flex justify-center rounded-md px-3 py-1.5 text-sm/6 font-semibold shadow-xs w-full"
+                className="flex justify-center rounded-md px-3 py-1.5 text-sm/6 font-semibold shadow-xs w-full bg-blue-500 text-white hover:bg-blue-600"
               >
                 {updateProductMutationIsPending ? <BeatLoader style={{ lineHeight: "1.25rem" }} /> : "Save"}
               </button>
