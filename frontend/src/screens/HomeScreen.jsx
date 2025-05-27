@@ -5,6 +5,7 @@ const HomeScreen = () => {
   const entities = [
     { name: "Products", path: "/products/" },
     { name: "Customers", path: "/customers/" },
+    { name: "Sales Orders", path: "/sales_orders/" },
   ];
 
   return (

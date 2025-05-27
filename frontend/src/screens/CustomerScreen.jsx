@@ -83,7 +83,7 @@ const CustomerScreen = () => {
         <button
           type="button"
           onClick={() => deleteCustomer(id)}
-          className="mt-4 flex w-full justify-center rounded-md px-3 py-1.5 text-sm/6 font-semibold shadow-xs"
+          className="mt-4 flex w-full justify-center rounded-md px-3 py-1.5 text-sm/6 font-semibold shadow-xs bg-red-500 text-white hover:bg-red-600"
         >
           {deleteCustomerMutationIsPending ? <BeatLoader /> : "Delete"}
         </button>
@@ -106,7 +106,7 @@ const CustomerScreen = () => {
 
   return (
     <div className="p-4">
-      <button onClick={() => navigate("/")} className="mb-4">
+      <button onClick={() => navigate("/customers")} className="mb-4">
         Back to Home
       </button>
       <div className="rounded-lg shadow-lg bg-neutral-800 p-4">
@@ -200,7 +200,7 @@ const CustomerScreen = () => {
               <button
                 type="submit"
                 disabled={updateCustomerMutationIsPending}
-                className="flex justify-center rounded-md px-3 py-1.5 text-sm/6 font-semibold shadow-xs w-full"
+                className="flex justify-center rounded-md px-3 py-1.5 text-sm/6 font-semibold shadow-xs w-full bg-blue-500 text-white hover:bg-blue-600"
               >
                 {updateCustomerMutationIsPending ? <BeatLoader style={{ lineHeight: "1.25rem" }} /> : "Save"}
               </button>

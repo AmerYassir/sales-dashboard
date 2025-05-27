@@ -8,6 +8,8 @@ const Products = lazy(() => import("./screens/Products"));
 const ProductScreen = lazy(() => import("./screens/ProductScreen"));
 const Customers = lazy(() => import("./screens/Customers"));
 const CustomerScreen = lazy(() => import("./screens/CustomerScreen"));
+const SalesOrders = lazy(() => import("./screens/SalesOrders"));
+const SalesOrderScreen = lazy(() => import("./screens/SalesOrderScreen"));
 const Login = lazy(() => import("./screens/Login"));
 const Signup = lazy(() => import("./screens/Signup"));
 const ErrorElement = lazy(() => import("./screens/ErrorElement"));
@@ -97,6 +99,22 @@ const Router = () => {
           element: (
             <Suspense fallback={<Loading />}>
               <CustomerScreen />
+            </Suspense>
+          ),
+        },
+        {
+          path: "/sales_orders",
+          element: (
+            <Suspense fallback={<Loading />}>
+              <SalesOrders />
+            </Suspense>
+          ),
+        },
+        {
+          path: "sales_orders/:id",
+          element: (
+            <Suspense fallback={<Loading />}>
+              <SalesOrderScreen />
             </Suspense>
           ),
         },
