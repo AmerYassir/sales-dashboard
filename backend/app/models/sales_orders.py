@@ -1,5 +1,5 @@
 from enum import Enum
-from pydantic import BaseModel
+from pydantic import BaseModel,Field
 from datetime import datetime
 from fastapi import HTTPException, Request,Depends
 from app.db.client import get_db_client
@@ -33,7 +33,7 @@ class OrderStatus(str, Enum):
     
 class SaleItem(BaseModel):
     product_id: int
-    quantity: int
+    quantity: int=Field(gt=0)
     # unit_price: float
     # subtotal: float  # You might calculate this, but it's good to include
 

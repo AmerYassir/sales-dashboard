@@ -117,6 +117,7 @@ class DBClient(DBManager):
             total_quantity INT NOT NULL,
             shipping_address TEXT,
             billing_address TEXT,
+            notes TEXT,
             payment_method VARCHAR(50),
             FOREIGN KEY (tenant_id) REFERENCES users(id),
             FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE

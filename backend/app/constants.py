@@ -21,6 +21,10 @@ DEFAULT_SALES_ORDER_GET_FIELD_KEYS = [
     "order_date",
     "order_status",
     "order_total",
+    "shipping_address",
+    "billing_address",
+    "payment_method",
+    "notes",
 ]
 DEFAULT_SALES_ORDER_ITEM_GET_FIELD_KEYS = [
     "id",

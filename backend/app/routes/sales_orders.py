@@ -28,7 +28,7 @@ async def get_sales_orders(commons:dict=Depends(common_request_params), page: in
     tenant_id = commons['tenant_id']
     db_client = commons['db_client']
     offset = (page - 1) * page_size
-    sales_orders = db_client.get_sales_orders_with_paging(tenant_id, limit=page, offset=offset)
+    sales_orders = db_client.get_sales_orders_with_paging(tenant_id, limit=page_size, offset=offset)
     print(f"Sales orders: {sales_orders}")
 
     total_count = db_client.get_table_count(tenant_id, "sales_orders")
